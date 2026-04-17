@@ -1,4 +1,4 @@
-// Warmonitor — app logic
+// Argos — app logic
 // Leaflet map + dashboard grid panels.
 (() => {
   const LAYERS = WM.LAYERS;
@@ -64,7 +64,7 @@
     }).setView(state.center, state.zoom);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; OSM · CartoDB · Warmonitor',
+      attribution: '&copy; OSM · CartoDB · Argos',
       subdomains: "abcd",
     }).addTo(map);
 
@@ -1463,9 +1463,9 @@
     const rows = [["layer","title","desc","severity","lat","lon","date","tags"]];
     state.filtered.forEach(e => rows.push([e._layer, e.title||"", e.desc||"", e.sev||"", e.lat, e.lon, e.date||"", (e.tags||[]).join("|")]));
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
-    download("warmonitor-" + Date.now() + ".csv", csv, "text/csv");
+    download("argos-" + Date.now() + ".csv", csv, "text/csv");
   }
-  function exportJSON() { download("warmonitor-" + Date.now() + ".json", JSON.stringify(state.filtered, null, 2), "application/json"); }
+  function exportJSON() { download("argos-" + Date.now() + ".json", JSON.stringify(state.filtered, null, 2), "application/json"); }
   function download(name, content, mime) {
     const b = new Blob([content], { type: mime });
     const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = name; a.click();
