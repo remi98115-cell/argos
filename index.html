@@ -66,10 +66,11 @@
       <label class="panel-label">Plage temporelle</label>
       <div class="chip-row" id="timeRange">
         <button data-range="1h" title="Événements de la dernière heure">1h</button>
+        <button data-range="6h" title="Événements des 6 dernières heures">6h</button>
         <button data-range="24h" title="Événements des 24 dernières heures">24h</button>
+        <button data-range="48h" title="Événements des 48 dernières heures">48h</button>
         <button data-range="7d" class="active" title="Événements des 7 derniers jours">7d</button>
-        <button data-range="30d" title="Événements des 30 derniers jours">30d</button>
-        <button data-range="90d" title="Événements des 90 derniers jours">90d</button>
+        <button data-range="all" title="Tous les événements">Tout</button>
       </div>
     </section>
 
@@ -141,7 +142,7 @@
     </footer>
   </aside>
 
-  <!-- Main dashboard area -->
+  <!-- Main dashboard area (centre) -->
   <main id="main">
     <!-- Map section -->
     <section id="map-section">
@@ -255,7 +256,7 @@
       <!-- SÉISMES LIVE — USGS -->
       <div class="dash-panel" data-panel="earthquakes">
         <div class="dash-head">
-          <h3>🌋 SÉISMES LIVE (USGS)</h3>
+          <h3>🌋 SÉISMES EN DIRECT (USGS)</h3>
           <span class="pill-live">LIVE</span>
           <span class="count-badge" id="quakesCount">0</span>
         </div>
@@ -286,55 +287,6 @@
           <div class="cam-featured-title" id="camFeaturedTitle">—</div>
         </div>
         <div class="cam-thumbs" id="camwallGrid"></div>
-      </div>
-
-      <!-- INSIGHTS IA -->
-      <div class="dash-panel" data-panel="insights">
-        <div class="dash-head">
-          <h3>INSIGHTS IA <span class="help">?</span></h3>
-          <span class="pill-live">EN DIRECT</span>
-        </div>
-        <div class="insight-box" id="insightBox">
-          <div class="insight-head">🌍 WORLD BRIEF</div>
-          <div class="insight-body" id="insightBody">
-            Analyse géopolitique agrégée en cours — tensions multiples détectées sur le front est-européen et au Moyen-Orient. Activité militaire élevée. Pression sur les voies maritimes stratégiques (Hormuz, Bab-el-Mandeb).
-          </div>
-          <div class="insight-foot">
-            <span class="tag">Géopolitique</span>
-            <span class="tag">Énergie</span>
-            <span class="tag">Maritime</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- AI FORECASTS -->
-      <div class="dash-panel" data-panel="forecasts">
-        <div class="dash-head">
-          <h3>AI FORECASTS <span class="help">?</span></h3>
-          <span class="pill-live">EN DIRECT</span>
-          <span class="count-badge" id="forecastCount">14</span>
-        </div>
-        <div class="chip-row" id="forecastCat">
-          <button class="active">All</button>
-          <button>Conflict</button>
-          <button>Market</button>
-          <button>Supply Chain</button>
-          <button>Political</button>
-          <button>Military</button>
-          <button>Cyber</button>
-          <button>Infra</button>
-        </div>
-        <div class="chip-row wrap" id="forecastRegion">
-          <button class="active">All Regions</button>
-          <button>MENA</button>
-          <button>East Asia</button>
-          <button>Europe</button>
-          <button>South Asia</button>
-          <button>Africa</button>
-          <button>LatAm</button>
-          <button>N. America</button>
-        </div>
-        <ul class="forecast-list" id="forecastList"></ul>
       </div>
 
       <!-- INSTABILITÉ PAYS -->
@@ -407,6 +359,115 @@
         </div>
       </div>
 
+      <!-- MATIÈRES PREMIÈRES -->
+      <div class="dash-panel" data-panel="commodities">
+        <div class="dash-head">
+          <h3>🏭 MATIÈRES PREMIÈRES <span class="help">?</span></h3>
+          <span class="pill-live">LIVE</span>
+        </div>
+        <div class="chip-row" id="commoTabs">
+          <button class="active" data-cat="metals">Métaux</button>
+          <button data-cat="energy">Énergie</button>
+          <button data-cat="fx">Devises</button>
+        </div>
+        <div class="commo-grid" id="commoGrid"></div>
+      </div>
+
+      <!-- CHAÎNE D'APPROVISIONNEMENT -->
+      <div class="dash-panel" data-panel="supply">
+        <div class="dash-head">
+          <h3>⚓ CHAÎNE D'APPROVISIONNEMENT <span class="help">?</span></h3>
+          <span class="pill-live">EN DIRECT</span>
+        </div>
+        <ul class="supply-list" id="supplyList"></ul>
+      </div>
+
+      <!-- PRÉDICTIONS POLYMARKET -->
+      <div class="dash-panel" data-panel="predictions">
+        <div class="dash-head">
+          <h3>🎲 PRÉDICTIONS <span class="help">?</span></h3>
+          <span class="pill-live">EN DIRECT</span>
+        </div>
+        <ul class="pred-list" id="predList"></ul>
+      </div>
+
+      <!-- THÉÂTRES STRATÉGIQUES -->
+      <div class="dash-panel" data-panel="theaters">
+        <div class="dash-head">
+          <h3>🎖 THÉÂTRES STRATÉGIQUES <span class="help">?</span></h3>
+        </div>
+        <ul class="theater-list" id="theaterList"></ul>
+      </div>
+
+      <!-- RENSEIGNEMENTS AÉRIENS -->
+      <div class="dash-panel" data-panel="airlines">
+        <div class="dash-head">
+          <h3>✈ RENSEIGNEMENTS AÉRIENS <span class="help">?</span></h3>
+        </div>
+        <ul class="airline-list" id="airlineList"></ul>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="dropZone" class="drop-zone">
+        <span>GLISSEZ ICI LES PANNEAUX POUR LES DÉPLACER</span>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Right sidebar -->
+  <aside id="rightbar">
+    <section id="right-panels" data-panels="insights,forecasts,intel,intellive,xsrc,market">
+
+      <!-- INSIGHTS IA -->
+      <div class="dash-panel" data-panel="insights">
+        <div class="dash-head">
+          <h3>INSIGHTS IA <span class="help">?</span></h3>
+          <span class="pill-live">EN DIRECT</span>
+        </div>
+        <div class="insight-box" id="insightBox">
+          <div class="insight-head">🌍 WORLD BRIEF</div>
+          <div class="insight-body" id="insightBody">
+            Analyse g\u00e9opolitique agr\u00e9g\u00e9e en cours\u2026
+          </div>
+          <div class="insight-foot">
+            <span class="tag">G\u00e9opolitique</span>
+            <span class="tag">\u00c9nergie</span>
+            <span class="tag">Maritime</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI FORECASTS -->
+      <div class="dash-panel" data-panel="forecasts">
+        <div class="dash-head">
+          <h3>PRÉVISIONS DE L'IA <span class="help">?</span></h3>
+          <span class="pill-live">EN DIRECT</span>
+          <span class="count-badge" id="forecastCount">14</span>
+        </div>
+        <div class="chip-row" id="forecastCat">
+          <button class="active">All</button>
+          <button>Conflict</button>
+          <button>Market</button>
+          <button>Supply Chain</button>
+          <button>Political</button>
+          <button>Military</button>
+          <button>Cyber</button>
+          <button>Infra</button>
+        </div>
+        <div class="chip-row wrap" id="forecastRegion">
+          <button class="active">All Regions</button>
+          <button>MENA</button>
+          <button>East Asia</button>
+          <button>Europe</button>
+          <button>South Asia</button>
+          <button>Africa</button>
+          <button>LatAm</button>
+          <button>N. America</button>
+        </div>
+        <ul class="forecast-list" id="forecastList"></ul>
+      </div>
+
       <!-- FLUX DE RENSEIGNEMENTS -->
       <div class="dash-panel" data-panel="intel">
         <div class="dash-head">
@@ -438,7 +499,7 @@
       <!-- CROSS-SOURCE SIGNAL AGGREGATOR -->
       <div class="dash-panel" data-panel="xsrc">
         <div class="dash-head">
-          <h3>CROSS-SOURCE SIGNAL AGGREGATOR</h3>
+          <h3>AGRÉGATEUR DE SIGNAUX MULTI-SOURCES</h3>
           <span class="count-badge">7</span>
         </div>
         <ul class="xsrc-list" id="xsrcList"></ul>
@@ -447,7 +508,7 @@
       <!-- AI MARKET IMPLICATIONS — unlocked (test mode) -->
       <div class="dash-panel" data-panel="market">
         <div class="dash-head">
-          <h3>AI MARKET IMPLICATIONS <span class="help">?</span></h3>
+          <h3>IMPLICATIONS POUR LE MARCHÉ DE L'IA <span class="help">?</span></h3>
           <span class="pill-live">EN DIRECT</span>
         </div>
         <ul class="market-list" id="marketList"></ul>
@@ -460,13 +521,22 @@
         <div class="add-menu" id="addMenu" hidden></div>
       </div>
 
-      <!-- ARGOS footer bar -->
-      <div class="dash-panel span-full world-monitor-bar">
-        <span>◉ ARGOS · Real-Time Global Intelligence · v1.0 · Sources : USGS · NASA EONET · Open-Meteo · GDELT · CoinGecko · CISA</span>
-      </div>
-
     </section>
-  </main>
+  </aside>
+
+  <!-- Sticky footer -->
+  <footer id="site-footer">
+    <div class="sf-left">
+      <span class="brand-logo">◉</span>
+      <span class="sf-name">ARGOS</span>
+      <span class="sf-ver">v1.0 · @remi98115-cell</span>
+    </div>
+    <nav class="sf-nav">
+      <a href="https://github.com/remi98115-cell/argos" target="_blank" rel="noopener">GitHub</a>
+      <a href="#" onclick="document.getElementById('settingsModal').hidden=false;return false">Paramètres</a>
+      <span class="sf-sources" title="Sources publiques live">Sources : USGS · NASA EONET · Open-Meteo · GDELT · CoinGecko</span>
+    </nav>
+  </footer>
 
   <!-- Cam fullscreen modal -->
   <div id="camModal" class="modal cam-modal" hidden>
