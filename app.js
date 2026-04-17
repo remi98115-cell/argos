@@ -1195,7 +1195,23 @@
 
   // =========== UI WIRING ===========
   function wire() {
-    document.getElementById("toggleSidebar").addEventListener("click", () => document.getElementById("app").classList.toggle("collapsed"));
+    const sidebarToggle = () => {
+      const app = document.getElementById("app");
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        app.classList.toggle("sidebar-open");
+      } else {
+        app.classList.toggle("collapsed");
+      }
+    };
+    document.getElementById("toggleSidebar")?.addEventListener("click", sidebarToggle);
+    document.getElementById("mobileMenuBtn")?.addEventListener("click", sidebarToggle);
+    // Click outside sidebar on mobile closes it
+    document.addEventListener("click", e => {
+      const app = document.getElementById("app");
+      if (!app.classList.contains("sidebar-open")) return;
+      if (e.target.closest("#sidebar") || e.target.closest("#mobileMenuBtn") || e.target.closest("#toggleSidebar")) return;
+      app.classList.remove("sidebar-open");
+    });
     document.getElementById("hideMapBtn").addEventListener("click", () => {
       document.getElementById("app").classList.toggle("no-map");
       setTimeout(() => map.invalidateSize(), 100);
