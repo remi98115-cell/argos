@@ -488,21 +488,32 @@ WM.liveFeeds = {
     } catch (e) { return []; }
   },
 
-  // Polymarket public API — prediction markets
+  // Polymarket public API — prediction markets (avec proxy CORS fallback)
   async polymarket() {
-    try {
-      const r = await fetch("https://gamma-api.polymarket.com/markets?limit=10&active=true&closed=false&order=volume&ascending=false");
-      if (!r.ok) return [];
-      const arr = await r.json();
-      return (Array.isArray(arr) ? arr : []).slice(0, 10).map(m => ({
-        question: m.question,
-        outcomes: (m.outcomePrices && JSON.parse(m.outcomePrices)) || [],
-        volume: +m.volume || 0,
-        endDate: m.endDate,
-        slug: m.slug,
-        url: "https://polymarket.com/market/" + m.slug,
-      }));
-    } catch (e) { console.warn("Polymarket failed", e); return []; }
+    const base = "https://gamma-api.polymarket.com/markets?limit=10&active=true&closed=false&order=volume&ascending=false";
+    const attempts = [
+      base,
+      "https://corsproxy.io/?" + encodeURIComponent(base),
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
+    ];
+    for (const url of attempts) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) continue;
+        const arr = await r.json();
+        if (!Array.isArray(arr)) continue;
+        return arr.slice(0, 10).map(m => ({
+          question: m.question,
+          outcomes: (m.outcomePrices && JSON.parse(m.outcomePrices)) || [],
+          volume: +m.volume || 0,
+          endDate: m.endDate,
+          slug: m.slug,
+          url: "https://polymarket.com/market/" + m.slug,
+        }));
+      } catch (e) { /* try next */ }
+    }
+    console.warn("Polymarket: all attempts failed");
+    return [];
   },
 
   // USGS quakes M4.5+ semaine (~80-150 entrées) avec fallback significatifs
