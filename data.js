@@ -1,4 +1,4 @@
-// Warmonitor — data registry
+// Argos — data registry
 // Layer definitions + curated static datasets + live API fetchers
 // Written from scratch. Public data sources: USGS, NASA EONET, NASA FIRMS,
 // Open-Meteo, CISA, GDELT, ACLED (demo), IAEA public list, OSM Overpass.
@@ -408,7 +408,7 @@ WM.liveFeeds = {
   // ReliefWeb — humanitarian updates (country instability signals)
   async reliefweb() {
     try {
-      const url = "https://api.reliefweb.int/v1/reports?appname=warmonitor&limit=20&sort[]=date:desc&preset=latest&profile=list";
+      const url = "https://api.reliefweb.int/v1/reports?appname=argos&limit=20&sort[]=date:desc&preset=latest&profile=list";
       const r = await fetch(url);
       if (!r.ok) return [];
       const j = await r.json();
