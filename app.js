@@ -691,8 +691,8 @@
   }
   window.addEventListener("resize", scheduleMasonry);
 
-  // Drag-and-drop panels (SortableJS)
-  function initSortable() {
+  // Drag-and-drop panels (SortableJS) — DÉSACTIVÉ
+  function initSortable() { return; /* drag verrouillé */
     if (!window.Sortable) return;
     const dash = document.getElementById("dashboard");
     if (!dash || dash.dataset.sortable) return;
