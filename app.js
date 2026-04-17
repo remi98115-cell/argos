@@ -175,8 +175,9 @@
 
   function applyFilters() {
     const now = Date.now();
-    const ranges = { "1h": 3600e3, "24h": 86400e3, "7d": 7*86400e3, "30d": 30*86400e3, "90d": 90*86400e3 };
-    const cutoff = now - ranges[state.timeRange];
+    const ranges = { "1h": 3600e3, "6h": 6*3600e3, "24h": 86400e3, "48h": 48*3600e3, "7d": 7*86400e3, "30d": 30*86400e3, "90d": 90*86400e3, "all": Infinity };
+    const span = ranges[state.timeRange] ?? ranges["7d"];
+    const cutoff = span === Infinity ? -Infinity : now - span;
     state.filtered = state.events.filter(e => {
       if (!state.activeLayers.has(e._layer)) return false;
       if (e.date) {
@@ -292,18 +293,23 @@
 
   // =========== DASHBOARD PANELS ===========
   const PANEL_META = {
-    news:        { label: "Actualités en direct",      src: "YouTube Live · 22 chaînes internationales" },
-    camwall:     { label: "Cam en direct",              src: "YouTube Live · OSINT aggregators · EarthCam" },
-    weather:     { label: "Météo monde",                src: "Open-Meteo · mise à jour 15 min · 60 villes" },
-    earthquakes: { label: "Séismes live (USGS)",        src: "USGS Earthquake Hazards · M4.5+ semaine" },
-    insights:    { label: "Insights IA",                src: "GDELT 2.0 · USGS · NASA EONET · analyse locale" },
-    forecasts:   { label: "AI Forecasts",               src: "Agrégation événements critiques · 14 projections" },
-    instability: { label: "Instabilité Pays",           src: "Fragile States Index · curation interne" },
-    risk:        { label: "Vue d'ensemble Risques",     src: "Agrégation multi-sources (conflits + nat. + cyber)" },
-    intel:       { label: "Flux de Renseignements",     src: "GDELT 2.0 DOC API · monde entier · 24h" },
-    intellive:   { label: "Renseignements en direct",   src: "GDELT 2.0 filtré par catégorie · temps réel" },
-    xsrc:        { label: "Cross-Source Aggregator",    src: "Signaux corrélés : militaire, cyber, éco, diplo" },
-    market:      { label: "AI Market Implications",     src: "CoinGecko (crypto) · ExchangeRate (forex)" },
+    news:        { label: "Actualités en direct",              src: "YouTube Live · 22 chaînes internationales" },
+    camwall:     { label: "Cam en direct",                      src: "YouTube Live · OSINT aggregators · EarthCam" },
+    weather:     { label: "Météo monde",                        src: "Open-Meteo · mise à jour 15 min · 60 villes" },
+    earthquakes: { label: "Séismes en direct (USGS)",           src: "USGS Earthquake Hazards · M4.5+ semaine" },
+    insights:    { label: "Insights IA",                        src: "GDELT 2.0 · USGS · NASA EONET · analyse locale" },
+    forecasts:   { label: "Prévisions de l'IA",                 src: "Agrégation événements critiques · 14 projections" },
+    instability: { label: "Instabilité Pays",                   src: "Fragile States Index · curation interne" },
+    risk:        { label: "Vue d'ensemble Risques",             src: "Agrégation multi-sources (conflits + nat. + cyber)" },
+    intel:       { label: "Flux de Renseignements",             src: "GDELT 2.0 DOC API · monde entier · 24h" },
+    intellive:   { label: "Renseignements en direct",           src: "GDELT 2.0 filtré par catégorie · temps réel" },
+    xsrc:        { label: "Agrégateur de signaux multi-sources",src: "Signaux corrélés : militaire, cyber, éco, diplo" },
+    market:      { label: "Implications pour le marché de l'IA",src: "CoinGecko (crypto) · ExchangeRate (forex)" },
+    commodities: { label: "Matières premières",                 src: "Gold API · Energy markets · CoinGecko" },
+    supply:      { label: "Chaîne d'approvisionnement",         src: "Points d'étranglement · trafic maritime" },
+    predictions: { label: "Prédictions",                        src: "Polymarket API · marchés de prédiction" },
+    theaters:    { label: "Théâtres stratégiques",              src: "Analyse multi-couches par zone géopolitique" },
+    airlines:    { label: "Renseignements aériens",             src: "Agrégation statuts aéroports majeurs" },
   };
 
   function renderDashboardPanels() {
@@ -327,6 +333,145 @@
     renderInsightsAI().catch(() => {});
     renderWeather().catch(() => {});
     renderQuakes().catch(() => {});
+    renderCommodities().catch(() => {});
+    renderSupply();
+    renderPredictions().catch(() => {});
+    renderTheaters();
+    renderAirlines();
+  }
+
+  // ===== MATIÈRES PREMIÈRES =====
+  async function renderCommodities() {
+    const grid = document.getElementById("commoGrid");
+    if (!grid) return;
+    const cat = document.querySelector("#commoTabs button.active")?.dataset?.cat || "metals";
+    grid.innerHTML = `<div style="grid-column:1/-1;color:var(--text-dim);text-align:center;font-size:11px">Chargement…</div>`;
+    const items = await WM.liveFeeds.commodities(cat);
+    if (!items.length) { grid.innerHTML = `<div style="color:var(--text-dim);text-align:center">Indisponible</div>`; return; }
+    grid.innerHTML = items.map(it => {
+      const delta = +it.delta || 0;
+      const cls = delta >= 0 ? "up" : "down";
+      const sign = delta >= 0 ? "+" : "";
+      const price = typeof it.price === "number" ? it.price.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : it.price;
+      return `<div class="commo-cell">
+        <div class="commo-name">${escapeHtml(it.ticker)}</div>
+        <div class="commo-price">${price} <span class="commo-unit">${escapeHtml(it.unit || "")}</span></div>
+        <div class="commo-delta ${cls}">${sign}${delta.toFixed(2)}%</div>
+      </div>`;
+    }).join("");
+  }
+
+  // ===== CHAÎNE D'APPROVISIONNEMENT =====
+  const CHOKEPOINTS = [
+    { name: "Détroit d'Ormuz", severity: "critical", traffic: "21 Mb/j pétrole", status: "Conflit actif", dir: "est-ouest" },
+    { name: "Canal de Suez", severity: "critical", traffic: "12% commerce mondial", status: "Tensions Mer Rouge", dir: "nord-sud" },
+    { name: "Détroit de Malacca", severity: "high", traffic: "30% commerce", status: "Surveillance accrue", dir: "est-ouest" },
+    { name: "Bab-el-Mandeb", severity: "critical", traffic: "Mer Rouge", status: "Attaques Houthis", dir: "nord-sud" },
+    { name: "Canal de Panama", severity: "med", traffic: "6% commerce US", status: "Restrictions sécheresse", dir: "est-ouest" },
+    { name: "Bosphore", severity: "high", traffic: "Céréales Mer Noire", status: "Conflit Russie-Ukraine", dir: "nord-sud" },
+    { name: "Détroit de Kertch", severity: "critical", traffic: "Mer d'Azov", status: "Zone guerre active", dir: "nord-sud" },
+    { name: "Détroit de Gibraltar", severity: "med", traffic: "Méd./Atlantique", status: "Trafic normal", dir: "est-ouest" },
+  ];
+  function renderSupply() {
+    const ul = document.getElementById("supplyList");
+    if (!ul) return;
+    ul.innerHTML = CHOKEPOINTS.map(c => {
+      const sevCol = c.severity === "critical" ? "var(--danger)" : c.severity === "high" ? "var(--warn)" : "var(--ok)";
+      const sevLbl = c.severity === "critical" ? "CRITIQUE" : c.severity === "high" ? "ÉLEVÉ" : "MODÉRÉ";
+      return `<li class="supply-item">
+        <div class="supply-head">
+          <span class="supply-dot" style="background:${sevCol}"></span>
+          <span class="supply-name">${escapeHtml(c.name)}</span>
+          <span class="supply-sev" style="color:${sevCol};border-color:${sevCol}">${sevLbl}</span>
+        </div>
+        <div class="supply-meta">${escapeHtml(c.traffic)} · direction ${escapeHtml(c.dir)}</div>
+        <div class="supply-status">${escapeHtml(c.status)}</div>
+      </li>`;
+    }).join("");
+  }
+
+  // ===== PRÉDICTIONS POLYMARKET =====
+  async function renderPredictions() {
+    const ul = document.getElementById("predList");
+    if (!ul) return;
+    ul.innerHTML = `<li style="color:var(--text-dim);text-align:center;padding:14px">Chargement Polymarket…</li>`;
+    const markets = await WM.liveFeeds.polymarket();
+    if (!markets.length) { ul.innerHTML = `<li style="color:var(--text-dim);text-align:center">Indisponible</li>`; return; }
+    ul.innerHTML = markets.slice(0, 8).map(m => {
+      const oui = m.outcomes[0] ? Math.round(+m.outcomes[0] * 100) : null;
+      const non = m.outcomes[1] ? Math.round(+m.outcomes[1] * 100) : null;
+      const vol = m.volume ? " · " + Math.round(m.volume / 1e6) + " M$" : "";
+      return `<li class="pred-item">
+        <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener" class="pred-question">${escapeHtml(m.question)}</a>
+        <div class="pred-bar">
+          ${oui != null ? `<span class="pred-oui" style="width:${oui}%">Oui ${oui}%</span>` : ""}
+          ${non != null ? `<span class="pred-non" style="width:${non}%">Non ${non}%</span>` : ""}
+        </div>
+        <div class="pred-meta">Polymarket${vol}</div>
+      </li>`;
+    }).join("");
+  }
+
+  // ===== THÉÂTRES STRATÉGIQUES =====
+  const THEATERS = [
+    { name: "L'Iran",      posture: "NORME", crit: "CRIT", air: 4,  sea: null, trend: "stable" },
+    { name: "Taïwan",      posture: "NORME", crit: null,   air: null, sea: null, trend: "stable" },
+    { name: "Baltique",    posture: "NORME", crit: "CRIT", air: 4,  sea: 181, trend: "stable" },
+    { name: "Mer Noire",   posture: "NORME", crit: null,   air: null, sea: 2,  trend: "stable" },
+    { name: "Corée",       posture: "NORME", crit: null,   air: 1,  sea: null, trend: "stable" },
+    { name: "Mer de Chine",posture: "NORME", crit: null,   air: null, sea: null, trend: "stable" },
+    { name: "Arctique",    posture: "NORME", crit: null,   air: null, sea: null, trend: "stable" },
+    { name: "Golfe Persique", posture: "ALERTE", crit: "CRIT", air: 2, sea: 12, trend: "escalade" },
+  ];
+  function renderTheaters() {
+    const ul = document.getElementById("theaterList");
+    if (!ul) return;
+    ul.innerHTML = THEATERS.map(t => {
+      const crit = t.crit ? `<span class="th-crit">${t.crit}</span>` : "";
+      const air = t.air ? `<span class="th-stat"><span class="th-lbl">AIR</span> ✈ ${t.air}</span>` : "";
+      const sea = t.sea ? `<span class="th-stat"><span class="th-lbl">MER</span> ⚓ ${t.sea}</span>` : "";
+      const postCls = t.posture === "ALERTE" ? "pst-alert" : "pst-norm";
+      const trendCls = t.trend === "escalade" ? "trend-up" : t.trend === "baisse" ? "trend-dn" : "trend-st";
+      const trendArrow = t.trend === "escalade" ? "↗" : t.trend === "baisse" ? "↘" : "→";
+      return `<li class="theater-item">
+        <div class="th-row">
+          <span class="th-name">${escapeHtml(t.name)}</span>
+          ${crit}
+          <span class="th-post ${postCls}">${t.posture}</span>
+        </div>
+        <div class="th-stats">${air}${sea}</div>
+        <div class="th-trend ${trendCls}">${trendArrow} ${t.trend}</div>
+      </li>`;
+    }).join("");
+  }
+
+  // ===== RENSEIGNEMENTS AÉRIENS =====
+  const AIRPORTS = [
+    { code:"LHR", name:"Londres Heathrow",     status:"NORMALE",  delay:"—" },
+    { code:"CDG", name:"Paris Charles de Gaulle", status:"NORMALE", delay:"—" },
+    { code:"FRA", name:"Aéroport de Francfort", status:"GRAVE",    delay:"-98,3 % cxl" },
+    { code:"IST", name:"Aéroport d'Istanbul",  status:"MINEURE",   delay:"+7 min" },
+    { code:"DXB", name:"Dubai International",  status:"MODÉRÉE",   delay:"+33 min" },
+    { code:"RUH", name:"King Khalid International", status:"NORMALE", delay:"—" },
+    { code:"SAW", name:"Sabiha Gökçen International", status:"NORMALE", delay:"—" },
+    { code:"ESB", name:"Esenboğa International", status:"NORMALE", delay:"—" },
+    { code:"JFK", name:"John F Kennedy",       status:"MINEURE",   delay:"+12 min" },
+    { code:"LAX", name:"Los Angeles",          status:"NORMALE",   delay:"—" },
+    { code:"NRT", name:"Tokyo Narita",         status:"NORMALE",   delay:"—" },
+    { code:"HKG", name:"Hong Kong",            status:"MODÉRÉE",   delay:"+25 min" },
+  ];
+  function renderAirlines() {
+    const ul = document.getElementById("airlineList");
+    if (!ul) return;
+    ul.innerHTML = AIRPORTS.map(a => {
+      const col = a.status === "GRAVE" ? "var(--danger)" : a.status === "MODÉRÉE" ? "var(--warn)" : a.status === "MINEURE" ? "var(--accent-2)" : "var(--ok)";
+      return `<li class="airline-item">
+        <span class="ap-code">${a.code}</span>
+        <span class="ap-name">${escapeHtml(a.name)}</span>
+        <span class="ap-status" style="color:${col}">${a.status}</span>
+        <span class="ap-delay">${escapeHtml(a.delay)}</span>
+      </li>`;
+    }).join("");
   }
 
   // ===== WEATHER PANEL =====
@@ -1298,7 +1443,7 @@
     });
     document.getElementById("pbSlider").addEventListener("input", e => {
       const v = +e.target.value;
-      const ranges = { "1h": 3600e3, "24h": 86400e3, "7d": 7*86400e3, "30d": 30*86400e3, "90d": 90*86400e3 };
+      const ranges = { "1h": 3600e3, "6h": 6*3600e3, "24h": 86400e3, "48h": 48*3600e3, "7d": 7*86400e3, "30d": 30*86400e3, "90d": 90*86400e3, "all": Infinity };
       const past = ranges[state.timeRange];
       const t = Date.now() - past + (past * v / 100);
       document.getElementById("pbTime").textContent = new Date(t).toLocaleString("fr-FR");
@@ -1398,6 +1543,14 @@
       document.querySelectorAll("#weatherTabs button").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       renderWeather().catch(() => {});
+    });
+
+    // Commodities tabs
+    document.getElementById("commoTabs")?.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      document.querySelectorAll("#commoTabs button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      renderCommodities().catch(() => {});
     });
 
     // Add panel tile
