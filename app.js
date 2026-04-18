@@ -754,15 +754,16 @@
   }
 
   // Instability — score live calculé depuis le ton GDELT par pays (24h)
+  // GDELT exige des phrases ≥ 5 caractères entre guillemets — d'où "Iran Tehran" pour contourner.
   const INSTAB_COUNTRIES = [
-    { name: "Iran",    query: "Iran",    lat: 32,    lon: 53 },
-    { name: "Russia",  query: "Russia",  lat: 61,    lon: 105 },
-    { name: "Ukraine", query: "Ukraine", lat: 49,    lon: 32 },
-    { name: "Israel",  query: "Israel",  lat: 31.5,  lon: 34.75 },
-    { name: "Sudan",   query: "Sudan",   lat: 15,    lon: 30 },
-    { name: "China",   query: "China",   lat: 35,    lon: 105 },
-    { name: "Myanmar", query: "Myanmar", lat: 21.9,  lon: 95.9 },
-    { name: "Haiti",   query: "Haiti",   lat: 18.97, lon: -72.3 },
+    { name: "Iran",    query: "Iran Tehran",   lat: 32,    lon: 53 },
+    { name: "Russia",  query: "Russia",        lat: 61,    lon: 105 },
+    { name: "Ukraine", query: "Ukraine",       lat: 49,    lon: 32 },
+    { name: "Israel",  query: "Israel",        lat: 31.5,  lon: 34.75 },
+    { name: "Sudan",   query: "Sudan",         lat: 15,    lon: 30 },
+    { name: "China",   query: "China Beijing", lat: 35,    lon: 105 },
+    { name: "Myanmar", query: "Myanmar",       lat: 21.9,  lon: 95.9 },
+    { name: "Haiti",   query: "Haiti",         lat: 18.97, lon: -72.3 },
   ];
   async function renderInstability() {
     const ul = document.getElementById("instabList");

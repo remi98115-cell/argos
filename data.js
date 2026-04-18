@@ -366,9 +366,12 @@ WM.liveFeeds = {
   },
 
   // GDELT timelinetone — ton moyen 24h par pays via mode=timelinetone (vrai ton)
+  // GDELT rejette les phrases < 5 caractères entre guillemets, alors on retire
+  // les guillemets dans ce cas (sinon mots multiples = on garde les guillemets pour précision)
   async gdeltCountryTone(countries) {
     const fetchOne = async (name) => {
-      const q = encodeURIComponent(`"${name}"`);
+      const useQuotes = name.length >= 5;
+      const q = encodeURIComponent(useQuotes ? `"${name}"` : name);
       const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=timelinetone&timespan=24H&format=json`;
       const attempts = [
         base,
