@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=7" />
+<link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
 <div id="app">
@@ -221,7 +221,6 @@
           <span class="nc-tag">DIRECT</span>
           <span id="newsHeadline">Flux d'actualités internationales</span>
         </div>
-        <div class="ad-tip">💡 Pour des vidéos sans pub : installez <a href="https://ublockorigin.com" target="_blank" rel="noopener">uBlock Origin</a> (Chrome / Firefox)</div>
       </div>
 
       <!-- MÉTÉO MONDE — featured city + thumbnails live Open-Meteo -->
@@ -288,7 +287,6 @@
           <div class="cam-featured-title" id="camFeaturedTitle">—</div>
         </div>
         <div class="cam-thumbs" id="camwallGrid"></div>
-        <div class="ad-tip">💡 Pour des vidéos sans pub : installez <a href="https://ublockorigin.com" target="_blank" rel="noopener">uBlock Origin</a> (Chrome / Firefox)</div>
       </div>
 
       <!-- INSTABILITÉ PAYS -->
@@ -528,6 +526,21 @@
     </nav>
   </footer>
 
+  <!-- Adblock tip modal (shown once on first visit) -->
+  <div id="adblockModal" class="modal" hidden>
+    <div class="modal-box">
+      <button class="modal-close" id="adblockClose" title="Fermer">×</button>
+      <h3>💡 Astuce — Vidéos sans publicité</h3>
+      <p style="font-size: 12px; line-height: 1.6; color: var(--text); margin: 0 0 14px;">
+        Les flux vidéo (chaînes d'info, caméras live) sont fournis par YouTube et peuvent contenir de la publicité.
+      </p>
+      <p style="font-size: 12px; line-height: 1.6; color: var(--text); margin: 0 0 14px;">
+        Pour une expérience sans pub, installez <a href="https://ublockorigin.com" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600;">uBlock Origin</a>, une extension gratuite et open-source disponible sur Chrome, Firefox, Edge.
+      </p>
+      <button id="adblockOk" style="background: var(--accent); color: #000; border: none; padding: 8px 18px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 1px; width: 100%;">J'AI COMPRIS</button>
+    </div>
+  </div>
+
   <!-- Cam fullscreen modal -->
   <div id="camModal" class="modal cam-modal" hidden>
     <div class="cam-modal-box">
@@ -565,7 +578,7 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="data.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="data.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

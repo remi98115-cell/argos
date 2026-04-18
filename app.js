@@ -1540,6 +1540,21 @@
     renderCamwall();
   }
 
+  // Popup astuce uBlock — affichée une seule fois, mémorisée dans localStorage
+  function showAdblockTip() {
+    if (localStorage.getItem("wm_adblock_tip_seen") === "1") return;
+    const modal = document.getElementById("adblockModal");
+    if (!modal) return;
+    modal.hidden = false;
+    const close = () => {
+      modal.hidden = true;
+      try { localStorage.setItem("wm_adblock_tip_seen", "1"); } catch {}
+    };
+    document.getElementById("adblockOk")?.addEventListener("click", close, { once: true });
+    document.getElementById("adblockClose")?.addEventListener("click", close, { once: true });
+    modal.addEventListener("click", e => { if (e.target.id === "adblockModal") close(); }, { once: true });
+  }
+
   function init() {
     try {
       parseURL();
@@ -1551,6 +1566,7 @@
       console.error("init error", e);
     }
     setTimeout(hideSplash, 2500);
+    setTimeout(showAdblockTip, 3000); // après le splash
     loadAll().catch(e => console.error("loadAll error", e)).finally(() => {
       hideSplash();
       // Self-heal: drop any webcam IDs that YouTube reports as non-embeddable
