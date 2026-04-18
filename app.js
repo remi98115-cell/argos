@@ -147,12 +147,19 @@
       const arr = STATIC[l.id] || [];
       arr.forEach(e => events.push({ ...e, _layer: l.id, id: e.id || `${l.id}-${Math.random().toString(36).slice(2, 8)}` }));
     }
-    const live = await Promise.all([FETCH.natural(state.timeRange), FETCH.earthquakes(state.timeRange), FETCH.fires(state.timeRange), FETCH.weather(state.timeRange)]);
-    const [natural, quakes, fires, weather] = live;
+    const live = await Promise.all([
+      FETCH.natural(state.timeRange),
+      FETCH.earthquakes(state.timeRange),
+      FETCH.fires(state.timeRange),
+      FETCH.weather(state.timeRange),
+      FETCH.aircraft(),
+    ]);
+    const [natural, quakes, fires, weather, aircraft] = live;
     if (natural) natural.forEach(e => events.push({ ...e, _layer: "natural" }));
     if (quakes)  quakes.forEach(e => events.push({ ...e, _layer: "natural" }));
     if (fires)   fires.forEach(e => events.push({ ...e, _layer: "fires" }));
     if (weather) weather.forEach(e => events.push({ ...e, _layer: "weather" }));
+    if (aircraft) aircraft.forEach(e => events.push({ ...e, _layer: "aircraft" }));
     state.events = events;
     state.lastUpdate = new Date();
     applyFilters();

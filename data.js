@@ -20,6 +20,7 @@ WM.LAYERS = [
   { id: "datacenters",   icon: "🖥",  label: "Centres de données IA",        color: "#33d1ff", cat: "infra" },
   { id: "military",      icon: "✈",  label: "Activité militaire",           color: "#7a8bff", cat: "mil" },
   { id: "shipping",      icon: "🚢",  label: "Trafic maritime",              color: "#4fc3f7", cat: "trade" },
+  { id: "aircraft",      icon: "✈",   label: "Avions en vol (live)",         color: "#00e5ff", cat: "trade", live: true },
   { id: "trade",         icon: "⚓",  label: "Routes commerciales",          color: "#22a3ff", cat: "trade" },
   { id: "flights",       icon: "✈",  label: "Retards de vols",              color: "#ff8a3b", cat: "trade" },
   { id: "protests",      icon: "📢",  label: "Manifestations",               color: "#ff9f43", cat: "social" },
@@ -722,6 +723,44 @@ WM.liveFeeds = {
 };
 
 WM.fetchers = {
+  // Avions en vol — adsb.lol API publique via CORS proxy (250 nm par zone)
+  async aircraft() {
+    const zones = [
+      { lat: 48, lon: 2 },     // Europe Ouest (Paris)
+      { lat: 32, lon: 35 },    // Israël/Levant
+      { lat: 35, lon: 51 },    // Iran
+      { lat: 50, lon: 30 },    // Ukraine
+      { lat: 39, lon: 116 },   // Pékin
+      { lat: 39, lon: -95 },   // USA Central
+      { lat: 35, lon: -118 },  // USA Ouest
+      { lat: 25, lon: 55 },    // Dubaï
+    ];
+    const all = [];
+    const seen = new Set();
+    for (const z of zones) {
+      try {
+        const url = `https://api.adsb.lol/v2/lat/${z.lat}/lon/${z.lon}/dist/250`;
+        const r = await fetch("https://corsproxy.io/?" + encodeURIComponent(url));
+        if (!r.ok) continue;
+        const j = await r.json();
+        (j.ac || []).forEach(a => {
+          if (!a.lat || !a.lon || seen.has(a.hex)) return;
+          seen.add(a.hex);
+          const callsign = (a.flight || "").trim() || a.r || a.hex;
+          all.push({
+            id: "ac-" + a.hex,
+            lat: a.lat, lon: a.lon,
+            title: "✈ " + callsign,
+            desc: `${a.t || "Aircraft"} · alt ${Math.round(a.alt_baro||0).toLocaleString("fr-FR")} ft · ${Math.round(a.gs||0)} kts · cap ${Math.round(a.track||0)}°`,
+            sev: "low",
+            tags: ["Aviation", a.t || "?"].concat(a.r ? ["Reg " + a.r] : []),
+          });
+        });
+      } catch {}
+    }
+    return all;
+  },
+
   async natural(range) {
     try {
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200");
