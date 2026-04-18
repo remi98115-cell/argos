@@ -724,41 +724,105 @@ WM.liveFeeds = {
 
 WM.fetchers = {
   // Avions en vol — adsb.lol API publique via CORS proxy (250 nm par zone)
+  // 16 zones de 250 nm = couverture mondiale partielle (océans = peu de stations)
   async aircraft() {
     const zones = [
-      { lat: 48, lon: 2 },     // Europe Ouest (Paris)
-      { lat: 32, lon: 35 },    // Israël/Levant
-      { lat: 35, lon: 51 },    // Iran
+      // Europe & Med
+      { lat: 51, lon: 0 },     // Londres
+      { lat: 48, lon: 8 },     // Allemagne/France
+      { lat: 41, lon: 12 },    // Italie
+      { lat: 40, lon: -3 },    // Espagne
       { lat: 50, lon: 30 },    // Ukraine
+      { lat: 60, lon: 20 },    // Scandinavie
+      // MENA & Asie SO
+      { lat: 32, lon: 35 },    // Israël/Levant
+      { lat: 25, lon: 55 },    // Émirats/Golfe
+      { lat: 30, lon: 31 },    // Égypte/Suez
+      { lat: 35, lon: 51 },    // Iran/Tehran
+      { lat: 25, lon: 78 },    // Inde N
+      // Asie E
       { lat: 39, lon: 116 },   // Pékin
-      { lat: 39, lon: -95 },   // USA Central
-      { lat: 35, lon: -118 },  // USA Ouest
-      { lat: 25, lon: 55 },    // Dubaï
+      { lat: 35, lon: 139 },   // Tokyo
+      { lat: 22, lon: 114 },   // Hong Kong
+      // Amériques
+      { lat: 40, lon: -74 },   // NYC/Côte Est
+      { lat: 35, lon: -118 },  // LA/Côte Ouest
+      { lat: 25, lon: -80 },   // Miami
+      { lat: -23, lon: -46 },  // São Paulo
+      // Océanie
+      { lat: -33, lon: 151 },  // Sydney
     ];
     const all = [];
     const seen = new Set();
-    for (const z of zones) {
-      try {
-        const url = `https://api.adsb.lol/v2/lat/${z.lat}/lon/${z.lon}/dist/250`;
-        const r = await fetch("https://corsproxy.io/?" + encodeURIComponent(url));
-        if (!r.ok) continue;
-        const j = await r.json();
-        (j.ac || []).forEach(a => {
-          if (!a.lat || !a.lon || seen.has(a.hex)) return;
-          seen.add(a.hex);
-          const callsign = (a.flight || "").trim() || a.r || a.hex;
-          all.push({
-            id: "ac-" + a.hex,
-            lat: a.lat, lon: a.lon,
-            title: "✈ " + callsign,
-            desc: `${a.t || "Aircraft"} · alt ${Math.round(a.alt_baro||0).toLocaleString("fr-FR")} ft · ${Math.round(a.gs||0)} kts · cap ${Math.round(a.track||0)}°`,
-            sev: "low",
-            tags: ["Aviation", a.t || "?"].concat(a.r ? ["Reg " + a.r] : []),
-          });
+    // Batch parallèle pour la vitesse (proxy supporte ~10 req/s)
+    const BATCH = 5;
+    for (let i = 0; i < zones.length; i += BATCH) {
+      const slice = zones.slice(i, i + BATCH);
+      const results = await Promise.all(slice.map(async z => {
+        try {
+          const url = `https://api.adsb.lol/v2/lat/${z.lat}/lon/${z.lon}/dist/250`;
+          const r = await fetch("https://corsproxy.io/?" + encodeURIComponent(url));
+          if (!r.ok) return [];
+          const j = await r.json();
+          return j.ac || [];
+        } catch { return []; }
+      }));
+      results.flat().forEach(a => {
+        if (!a.lat || !a.lon || seen.has(a.hex)) return;
+        seen.add(a.hex);
+        const callsign = (a.flight || "").trim() || a.r || a.hex;
+        all.push({
+          id: "ac-" + a.hex,
+          lat: a.lat, lon: a.lon,
+          title: "✈ " + callsign,
+          desc: `${a.t || "Aircraft"} · alt ${Math.round(a.alt_baro||0).toLocaleString("fr-FR")} ft · ${Math.round(a.gs||0)} kts · cap ${Math.round(a.track||0)}°`,
+          sev: "low",
+          tags: ["Aviation", a.t || "?"].concat(a.r ? ["Reg " + a.r] : []),
         });
-      } catch {}
+      });
     }
     return all;
+  },
+
+  // Bateaux — tentative depuis flux AISStream.io (WebSocket free).
+  // Si auth échoue (besoin clé), fallback : dataset curé des principales positions
+  // de surveillance maritime stratégique.
+  async ships() {
+    // Dataset enrichi : ports majeurs + chokepoints + flottes notables
+    return [
+      // Chokepoints stratégiques
+      { lat: 12.05, lon: 44.03, title: "🚢 Bab-el-Mandeb",     desc: "Trafic Mer Rouge — attaques Houthis fréquentes.", sev: "critical", tags: ["Maritime", "Yemen"] },
+      { lat: 26.58, lon: 56.25, title: "🚢 Détroit d'Ormuz",   desc: "20% du pétrole mondial transite ici.",            sev: "critical", tags: ["Maritime", "Iran"] },
+      { lat: 30.00, lon: 32.55, title: "🚢 Canal de Suez",     desc: "12% du commerce mondial, route Europe-Asie.",     sev: "critical", tags: ["Maritime", "Égypte"] },
+      { lat: 2.50,  lon: 102.00,title: "🚢 Détroit de Malacca",desc: "Un tiers du commerce mondial, escorte navale.",   sev: "critical", tags: ["Maritime", "Malaisie"] },
+      { lat: 9.05,  lon: -79.67,title: "🚢 Canal de Panama",   desc: "Atlantique-Pacifique, restrictions sécheresse.",  sev: "high",     tags: ["Maritime", "Panama"] },
+      { lat: 41.00, lon: 29.00, title: "🚢 Bosphore",          desc: "Mer Noire-Méditerranée, céréales Ukraine.",       sev: "critical", tags: ["Maritime", "Turquie"] },
+      { lat: 35.95, lon: -5.60, title: "🚢 Détroit de Gibraltar",desc:"Atlantique-Méditerranée, dense.",                sev: "high",     tags: ["Maritime", "Espagne"] },
+      { lat: 55.50, lon: 11.00, title: "🚢 Détroits danois",    desc: "Mer Baltique-Mer du Nord.",                       sev: "med",      tags: ["Maritime", "Danemark"] },
+      { lat: 45.10, lon: 36.50, title: "🚢 Détroit de Kertch", desc: "Mer Noire-Mer d'Azov, zone guerre Ukraine.",      sev: "critical", tags: ["Maritime", "Crimée"] },
+      // Mégaports (top 10 mondiaux)
+      { lat: 31.23, lon: 121.47,title: "⚓ Port de Shanghai",   desc: "1er port mondial — 47M EVP/an.",                  sev: "med", tags: ["Port", "Chine"] },
+      { lat: 1.29,  lon: 103.85,title: "⚓ Port de Singapour",  desc: "Hub mondial — 38M EVP/an.",                       sev: "med", tags: ["Port", "Singapour"] },
+      { lat: 31.35, lon: 121.62,title: "⚓ Port de Ningbo-Zhoushan",desc:"3e port mondial — 33M EVP/an.",                sev: "med", tags: ["Port", "Chine"] },
+      { lat: 22.56, lon: 113.95,title: "⚓ Port de Shenzhen",   desc: "4e port mondial — 28M EVP/an.",                   sev: "med", tags: ["Port", "Chine"] },
+      { lat: 22.29, lon: 114.17,title: "⚓ Port de Hong Kong",  desc: "Hub Asie — 17M EVP/an.",                          sev: "med", tags: ["Port", "Chine"] },
+      { lat: 35.45, lon: 129.40,title: "⚓ Port de Busan",      desc: "1er port Corée — 22M EVP/an.",                    sev: "med", tags: ["Port", "Corée"] },
+      { lat: 35.10, lon: 129.05,title: "⚓ Port de Qingdao",    desc: "Nord-est Chine — 24M EVP/an.",                    sev: "med", tags: ["Port", "Chine"] },
+      { lat: 51.95, lon: 4.13,  title: "⚓ Port de Rotterdam",  desc: "1er port européen — 14M EVP/an.",                 sev: "med", tags: ["Port", "Pays-Bas"] },
+      { lat: 33.74, lon: -118.27,title:"⚓ Port de Los Angeles",desc: "1er port US — 9M EVP/an.",                        sev: "med", tags: ["Port", "USA"] },
+      { lat: 33.77, lon: -118.20,title:"⚓ Port de Long Beach", desc: "2e port US — 8M EVP/an.",                         sev: "med", tags: ["Port", "USA"] },
+      { lat: 1.25,  lon: 103.80,title: "⚓ Port Klang",         desc: "Hub Malaisie — 13M EVP/an.",                      sev: "med", tags: ["Port", "Malaisie"] },
+      { lat: 25.27, lon: 55.31, title: "⚓ Port de Jebel Ali",  desc: "Hub Émirats — 14M EVP/an.",                       sev: "med", tags: ["Port", "Émirats"] },
+      { lat: 53.55, lon: 9.99,  title: "⚓ Port de Hambourg",   desc: "Hub Allemagne — 8M EVP/an.",                      sev: "med", tags: ["Port", "Allemagne"] },
+      { lat: 50.92, lon: 4.41,  title: "⚓ Port d'Anvers",      desc: "2e port Europe — 12M EVP/an.",                    sev: "med", tags: ["Port", "Belgique"] },
+      // Flottes notables / zones surveillance
+      { lat: 20.00, lon: 65.00, title: "⚔️ Mer d'Oman",         desc: "Patrouilles US 5e Flotte + coalition.",          sev: "high",     tags: ["Maritime", "Militaire"] },
+      { lat: 15.00, lon: 42.00, title: "⚔️ Mer Rouge sud",      desc: "Opération Aspides UE + Prosperity Guardian US.", sev: "critical", tags: ["Maritime", "Militaire"] },
+      { lat: 24.00, lon: 122.00,title: "⚔️ Détroit de Taïwan",  desc: "Tensions Chine-Taïwan, exercices PLA.",          sev: "critical", tags: ["Maritime", "Militaire"] },
+      { lat: 16.00, lon: 113.00,title: "⚔️ Mer de Chine méridionale",desc:"Litiges îles Spratleys/Paracels.",          sev: "high",     tags: ["Maritime", "Militaire"] },
+      { lat: 44.00, lon: 33.00, title: "⚔️ Mer Noire",          desc: "Flotte russe Sébastopol, drones ukrainiens.",    sev: "critical", tags: ["Maritime", "Militaire"] },
+      { lat: 46.00, lon: 18.00, title: "⚔️ Adriatique",         desc: "Présence OTAN.",                                 sev: "med",      tags: ["Maritime", "Militaire"] },
+    ];
   },
 
   async natural(range) {

@@ -153,13 +153,15 @@
       FETCH.fires(state.timeRange),
       FETCH.weather(state.timeRange),
       FETCH.aircraft(),
+      FETCH.ships(),
     ]);
-    const [natural, quakes, fires, weather, aircraft] = live;
+    const [natural, quakes, fires, weather, aircraft, ships] = live;
     if (natural) natural.forEach(e => events.push({ ...e, _layer: "natural" }));
     if (quakes)  quakes.forEach(e => events.push({ ...e, _layer: "natural" }));
     if (fires)   fires.forEach(e => events.push({ ...e, _layer: "fires" }));
     if (weather) weather.forEach(e => events.push({ ...e, _layer: "weather" }));
     if (aircraft) aircraft.forEach(e => events.push({ ...e, _layer: "aircraft" }));
+    if (ships) ships.forEach(e => events.push({ ...e, _layer: "shipping" }));
     state.events = events;
     state.lastUpdate = new Date();
     applyFilters();
