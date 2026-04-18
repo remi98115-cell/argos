@@ -303,7 +303,6 @@
     earthquakes: { label: "Séismes en direct (USGS)",           src: "USGS Earthquake Hazards · M4.5+ semaine" },
     insights:    { label: "Insights IA",                        src: "GDELT 2.0 · USGS · NASA EONET · analyse locale" },
     instability: { label: "Instabilité Pays",                   src: "GDELT 2.0 · ton moyen 24h par pays (live)" },
-    risk:        { label: "Vue d'ensemble Risques",             src: "Agrégation multi-sources (conflits + nat. + cyber)" },
     intel:       { label: "Flux de Renseignements",             src: "GDELT 2.0 DOC API · monde entier · 24h" },
     intellive:   { label: "Renseignements en direct",           src: "GDELT 2.0 filtré par catégorie · temps réel" },
     market:      { label: "Implications pour le marché de l'IA",src: "CoinGecko (crypto) · ExchangeRate (forex)" },
@@ -317,7 +316,6 @@
   function renderDashboardPanels() {
     renderCamwall();
     renderInstability().catch(() => {});
-    renderRiskGauge();
     renderInsights();
     renderNewsCount();
     injectPanelCloseButtons();
@@ -864,127 +862,6 @@
     }).join("");
   }
 
-  // Risk gauge — score géopolitique stable basé sur la sévérité cumulée.
-  // Formule : 45 (base) + critical×1 + high×0.4 + med×0.1, normalisé [35,80].
-  function renderRiskGauge() {
-    let critical = 0, high = 0, med = 0;
-    for (const e of state.filtered) {
-      if (e.sev === "critical") critical++;
-      else if (e.sev === "high") high++;
-      else if (e.sev === "med") med++;
-    }
-    // Scoring ajusté pour rester typiquement 50-70 (ÉLEVÉ), 80+ rare
-    let score = 40 + critical * 0.6 + high * 0.25 + med * 0.05;
-    score = Math.min(80, Math.max(30, Math.round(score)));
-    const riskEl = document.getElementById("riskVal"); if (riskEl) riskEl.textContent = score;
-    const lbl = score >= 75 ? "CRITIQUE" : score >= 60 ? "ÉLEVÉ" : score >= 45 ? "MODÉRÉ" : "FAIBLE";
-    const gaugeLbl = document.querySelector(".gauge-lbl");
-    if (gaugeLbl) gaugeLbl.textContent = lbl;
-    const circumference = 2 * Math.PI * 48;
-    const offset = circumference - (score/100) * circumference;
-    const ring = document.getElementById("gaugeRing");
-    if (ring) {
-      ring.setAttribute("stroke-dasharray", circumference);
-      ring.setAttribute("stroke-dashoffset", offset);
-      const color = score >= 75 ? "#ff3040" : score >= 60 ? "#ffb020" : score >= 45 ? "#ffd25f" : "#22d39a";
-      ring.setAttribute("stroke", color);
-      if (gaugeLbl) gaugeLbl.style.color = color;
-    }
-    // Persist trend : compare to previous stored value
-    const prev = +(localStorage.getItem("wm_risk_prev") || score);
-    let trend = "Stable", arrow = "→", trendColor = "var(--info)";
-    if (score > prev + 1) { trend = "En escalade"; arrow = "↗"; trendColor = "var(--danger)"; }
-    else if (score < prev - 1) { trend = "En baisse"; arrow = "↘"; trendColor = "var(--ok)"; }
-    localStorage.setItem("wm_risk_prev", String(score));
-    const trendEl = document.getElementById("riskTrend");
-    const arrowEl = document.getElementById("riskTrendArrow");
-    if (trendEl) { trendEl.textContent = trend; trendEl.style.color = trendColor; }
-    if (arrowEl) { arrowEl.textContent = arrow; arrowEl.style.color = trendColor; }
-
-    // Métriques 2x2
-    const infraLayers = new Set(["cables","pipelines","datacenters","outages","gps"]);
-    const infraCount = state.filtered.filter(e => infraLayers.has(e._layer)).length;
-    const highCount = critical + high;
-    // Convergence : nb de clusters (≥3 événements dans un rayon ~500km)
-    let convergence = 0;
-    const pts = state.filtered.filter(e=>e.sev==="critical"||e.sev==="high").map(e=>[e.lat,e.lon]);
-    const used = new Set();
-    for (let i=0;i<pts.length;i++) {
-      if (used.has(i)) continue;
-      let cluster = 1;
-      for (let j=i+1;j<pts.length;j++) {
-        if (used.has(j)) continue;
-        const d = Math.hypot(pts[i][0]-pts[j][0], pts[i][1]-pts[j][1]);
-        if (d < 5) { cluster++; used.add(j); }
-      }
-      if (cluster >= 3) { convergence++; used.add(i); }
-    }
-    // Déviation CII : écart-type des scores d'instabilité pays (% de la moyenne)
-    const scores = INSTAB_COUNTRIES.map(c=>c.base);
-    const mean = scores.reduce((a,b)=>a+b,0) / scores.length;
-    const variance = scores.reduce((a,b)=>a+(b-mean)*(b-mean),0) / scores.length;
-    const deviation = Math.sqrt(variance).toFixed(1).replace(".", ",");
-
-    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    setTxt("metConvergence", convergence);
-    setTxt("metDeviation", deviation);
-    setTxt("metInfra", infraCount);
-    setTxt("metHigh", highCount);
-
-    // Top 3 risques principaux
-    const topRisks = [...state.filtered]
-      .sort((a,b) => severityWeight(b.sev) - severityWeight(a.sev))
-      .slice(0, 3);
-    const topList = document.getElementById("riskTop");
-    if (topList) {
-      topList.innerHTML = topRisks.length
-        ? topRisks.map(r => `<li>${escapeHtml(r.title || "Risque")} — <span style="color:var(--text-dim)">${escapeHtml((r.tags||[]).slice(0,2).join(", ") || "Global")}</span></li>`).join("")
-        : `<li style="border-left-color:var(--border);background:transparent">Aucun risque majeur</li>`;
-    }
-
-    // Alertes récentes — format "Instabilité en hausse : Pays"
-    // Exclut météo/naturel (pas pertinent pour instabilité politique)
-    const excludedLayers = new Set(["weather", "daynight", "webcams", "natural", "fires"]);
-    const factors = ["Activité militaire","Manifestations","Tensions diplomatiques","Mouvements de troupes","Cyber intrusion","Flux migratoires","Pression sanctions"];
-    // Liste des pays valides pour filtrer
-    const validCountries = new Set(["Ukraine","Russie","Iran","Israël","Syrie","Liban","Irak","Yémen","Palestine","Arabie saoudite","Turquie","Afghanistan","Pakistan","Inde","Chine","Corée du Nord","Corée du Sud","Japon","Taïwan","Vietnam","Thaïlande","Myanmar","Philippines","Indonésie","USA","Canada","Mexique","Brésil","Venezuela","Colombie","Haïti","France","Allemagne","Royaume-Uni","Italie","Espagne","Pologne","Belarus","Tchad","RDC","Soudan","Éthiopie","Somalie","Kenya","Nigeria","Mali","Niger","Égypte","Libye","Houthis","Hamas","Hezbollah","M23","Boko Haram"]);
-    const pickCountry = (tags) => {
-      if (!tags) return null;
-      for (const t of tags) { if (validCountries.has(t)) return t; }
-      return null;
-    };
-    const recent = [...state.filtered]
-      .filter(e => e.date && !excludedLayers.has(e._layer) && (e.sev === "critical" || e.sev === "high" || e.sev === "med") && pickCountry(e.tags))
-      .sort((a,b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 30);
-    const alertsEl = document.getElementById("riskAlerts");
-    const alertsCount = document.getElementById("alertsCount");
-    if (alertsCount) alertsCount.textContent = recent.length;
-    if (alertsEl) {
-      alertsEl.innerHTML = recent.map((r, i) => {
-        const cls = r.sev === "critical" ? "hi" : r.sev === "high" ? "med" : "";
-        const color = r.sev === "critical" ? "var(--danger)" : r.sev === "high" ? "var(--warn)" : "var(--ok)";
-        const country = (r.tags && r.tags[0]) || "Global";
-        // Simule un changement d'indice : base + delta basé sur la sévérité
-        const base = 10 + (i * 3) % 40;
-        const delta = r.sev === "critical" ? 15 + (i % 10) : r.sev === "high" ? 8 + (i % 6) : 4 + (i % 4);
-        const factor = factors[i % factors.length];
-        return `<li class="risk-alert ${cls}">
-          <div class="risk-alert-head">
-            <span class="risk-alert-dot" style="background:${color}"></span>
-            <span class="risk-alert-country">Instabilité en hausse : ${escapeHtml(country)}</span>
-            <span class="risk-alert-time">${relDate(r.date)}</span>
-          </div>
-          <div class="risk-alert-desc">L'indice d'instabilité est passé de ${base} à ${base+delta} (+${delta}). Facteur : ${escapeHtml(factor)}.</div>
-        </li>`;
-      }).join("") || `<li class="risk-alert"><div class="risk-alert-desc">Aucune alerte récente</div></li>`;
-    }
-
-    // Timestamp
-    const upd = document.getElementById("riskUpdated");
-    if (upd) upd.textContent = new Date().toLocaleTimeString("fr-FR");
-  }
-
   // Insights — base (rapide, avant l'arrivée GDELT)
   function renderInsights() {
     const critical = state.filtered.filter(e => e.sev === "critical");
@@ -1292,7 +1169,6 @@
     }
 
     // Risk refresh
-    document.getElementById("riskRefresh")?.addEventListener("click", () => { loadAll(); });
 
     // Cam enlarge button → open modal on the currently featured cam
     document.getElementById("camExpandBtn")?.addEventListener("click", () => {

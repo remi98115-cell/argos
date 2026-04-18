@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=18" />
+<link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
 <div id="app">
@@ -253,68 +253,6 @@
         <div class="weather-grid" id="weatherGrid"></div>
       </div>
 
-      <!-- VUE D'ENSEMBLE RISQUES (placé en haut à droite des news) -->
-      <div class="dash-panel" data-panel="risk">
-        <div class="dash-head">
-          <h3>VUE D'ENSEMBLE DES RISQUES STRATÉGIQUES <span class="help">?</span></h3>
-          <span class="pill-live">EN DIRECT</span>
-        </div>
-        <div class="risk-gauge">
-          <div class="gauge-wrap">
-            <svg viewBox="0 0 120 120" class="gauge-svg">
-              <circle cx="60" cy="60" r="48" stroke="#222" stroke-width="10" fill="none"/>
-              <circle id="gaugeRing" cx="60" cy="60" r="48" stroke="#ffb020" stroke-width="10" fill="none"
-                stroke-dasharray="301" stroke-dashoffset="102" transform="rotate(-90 60 60)" stroke-linecap="round"/>
-            </svg>
-            <div class="gauge-text">
-              <div class="gauge-val" id="riskVal">66</div>
-              <div class="gauge-lbl">ÉLEVÉ</div>
-            </div>
-          </div>
-          <div class="gauge-trend">
-            <div class="gtrend-label">TENDANCE</div>
-            <div class="gtrend-val"><span id="riskTrendArrow">→</span> <span id="riskTrend">Stable</span></div>
-          </div>
-        </div>
-
-        <!-- Métriques 2x2 -->
-        <div class="risk-metrics">
-          <div class="rmet">
-            <div class="rmet-val" id="metConvergence">0</div>
-            <div class="rmet-lbl">CONVERGENCE</div>
-          </div>
-          <div class="rmet">
-            <div class="rmet-val" id="metDeviation">0,0</div>
-            <div class="rmet-lbl">DÉVIATION CII</div>
-          </div>
-          <div class="rmet">
-            <div class="rmet-val" id="metInfra">0</div>
-            <div class="rmet-lbl">ÉVÉNEMENTS INFRA</div>
-          </div>
-          <div class="rmet">
-            <div class="rmet-val" id="metHigh">0</div>
-            <div class="rmet-lbl">ALERTES ÉLEVÉES</div>
-          </div>
-        </div>
-
-        <!-- Risques principaux -->
-        <div class="risk-section">
-          <div class="risk-section-title">RISQUES PRINCIPAUX</div>
-          <ol class="risk-top" id="riskTop"></ol>
-        </div>
-
-        <!-- Alertes récentes -->
-        <div class="risk-section">
-          <div class="risk-section-title">ALERTES RÉCENTES <span class="rsec-count" id="alertsCount">0</span></div>
-          <ul class="risk-alerts" id="riskAlerts"></ul>
-        </div>
-
-        <div class="risk-foot">
-          <span>Mis à jour : <span id="riskUpdated">—</span></span>
-          <button class="mini" id="riskRefresh">Actualiser</button>
-        </div>
-      </div>
-
       <!-- CAM EN DIRECT — seul panneau cam (featured + thumbnails) -->
       <div class="dash-panel" data-panel="camwall">
         <div class="dash-head">
@@ -542,7 +480,7 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="data.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="data.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>
