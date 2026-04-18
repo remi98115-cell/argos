@@ -875,7 +875,7 @@
   function renderInstability() {
     const ul = document.getElementById("instabList");
     if (!ul) return;
-    ul.innerHTML = INSTAB_COUNTRIES.slice(0, 6).map(ctry => {
+    ul.innerHTML = INSTAB_COUNTRIES.map(ctry => {
       const score = Math.min(99, ctry.base + Math.floor(Math.random()*4)-2);
       const color = score >= 80 ? "var(--accent)" : score >= 60 ? "var(--warn)" : "var(--ok)";
       return `
@@ -1176,12 +1176,14 @@
     else if (active.includes("asie")) list = WEBCAMS.asia;
     else if (active.includes("espace") || active.includes("iss")) list = WEBCAMS.space;
     else list = WEBCAMS.all || [];
-    const items = list.slice(0, 4);
+    const items = list.slice(0, 8);
     const countEl = document.getElementById("camCount");
     if (countEl) countEl.textContent = list.length;
+    // Aperçu statique YouTube (image) au lieu d'iframe pour des thumbs cliquables et légers
     grid.innerHTML = items.map((c, i) => `
-      <div class="cam-cell ${i===0?'active':''}" data-vid="${c.vid}" data-title="${escapeHtml(c.title)}">
-        <iframe src="https://www.youtube.com/embed/${c.vid}?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+      <div class="cam-cell ${i===0?'active':''}" data-vid="${c.vid}" data-title="${escapeHtml(c.title)}" title="${escapeHtml(c.title)} — ${escapeHtml(c.loc||'')}">
+        <img src="https://i.ytimg.com/vi/${c.vid}/mqdefault.jpg" alt="${escapeHtml(c.title)}" loading="lazy" />
+        <span class="cam-live">● LIVE</span>
         <span class="cam-title">${escapeHtml(c.title)}</span>
       </div>
     `).join("");

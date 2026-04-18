@@ -463,7 +463,7 @@ body.light-mode .leaflet-tile { filter: none; }
 .dash-panel > *:last-child { min-height: 0; }
 .intel-feed, .intel-live, .xsrc-list, .market-list, .quake-list,
 .airline-list, .supply-list, .pred-list, .risk-alerts,
-.weather-grid, .cam-thumbs, .instab-list, .commo-grid, .theater-list,
+.weather-grid, .instab-list, .commo-grid, .theater-list,
 .forecast-list { flex: 1; min-height: 0; overflow-y: auto; max-height: none !important; }
 .dash-panel[hidden] { display: none !important; }
 
@@ -741,20 +741,19 @@ body.light-mode .leaflet-tile { filter: none; }
   border-radius: 3px; font-size: 10px; letter-spacing: .5px;
 }
 .cam-thumbs {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
-  max-height: 100px; overflow: hidden;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+  margin-top: 6px;
 }
-.cam-thumbs .cam-cell { aspect-ratio: 16/10; }
 .cam-thumbs .cam-cell {
-  aspect-ratio: 16/11; position: relative; background: #000;
+  aspect-ratio: 16/10; position: relative; background: #000;
   border-radius: 3px; overflow: hidden; cursor: pointer;
-  border: 1px solid transparent; transition: border-color .15s;
+  border: 1px solid var(--border); transition: border-color .15s, transform .15s;
 }
-.cam-thumbs .cam-cell:hover { border-color: var(--accent); }
-.cam-thumbs .cam-cell.active { border-color: var(--accent); }
-.cam-thumbs .cam-cell iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
-.cam-thumbs .cam-title { position: absolute; inset: auto 0 0 0; background: rgba(0,0,0,.75); color: #fff; font-size: 8px; padding: 2px 4px; line-height: 1.1; text-align: center; }
-.cam-thumbs .cam-live, .cam-thumbs .cam-loc { display: none; }
+.cam-thumbs .cam-cell:hover { border-color: var(--accent); transform: scale(1.03); z-index: 3; }
+.cam-thumbs .cam-cell.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cam-thumbs .cam-cell img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.cam-thumbs .cam-cell .cam-title { position: absolute; inset: auto 0 0 0; background: linear-gradient(transparent, rgba(0,0,0,.85)); color: #fff; font-size: 9px; padding: 8px 4px 3px; line-height: 1.1; text-align: center; font-weight: 600; }
+.cam-thumbs .cam-cell .cam-live { position: absolute; top: 3px; right: 3px; background: var(--danger); color: #fff; padding: 1px 4px; border-radius: 2px; font-size: 7px; font-weight: 700; letter-spacing: .5px; }
 
 /* Market list */
 .market-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; max-height: 240px; }
