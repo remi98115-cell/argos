@@ -376,9 +376,12 @@ WM.liveFeeds = {
     const fresh = (entry) => entry && (now - entry.ts) < TTL;
 
     const results = {};
-    // 1) D'abord servir tout ce qui est en cache frais
-    countries.forEach(name => {
-      if (fresh(cache[name])) results[name] = cache[name].val;
+    // 1) D'abord servir tout ce qui est en cache frais (notifie onProgress immédiatement)
+    countries.forEach((name, i) => {
+      if (fresh(cache[name])) {
+        results[name] = cache[name].val;
+        if (onProgress) onProgress(name, cache[name].val, i + 1, countries.length);
+      }
     });
 
     // 2) Pour les manquants, fetch séquentiel avec 5s de délai

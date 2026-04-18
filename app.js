@@ -771,48 +771,85 @@
   async function renderInstability() {
     const ul = document.getElementById("instabList");
     if (!ul) return;
-    ul.innerHTML = `<li style="color:var(--text-dim);text-align:center;padding:14px">Calcul GDELT live…</li>`;
-    const tones = await WM.liveFeeds.gdeltCountryTone(INSTAB_COUNTRIES.map(c => c.query));
+
     // Trend storage
     let prev = {};
     try { prev = JSON.parse(localStorage.getItem("wm_instab_prev") || "{}"); } catch {}
-    const next = {};
-    const enriched = INSTAB_COUNTRIES.map(ctry => {
-      const t = tones[ctry.query];
-      const tone = t?.tone ?? 0;
-      const articles = t?.articles ?? 0;
-      // Map ton GDELT (-10..+5) → score instabilité (99..15)
-      const score = Math.max(5, Math.min(99, Math.round(50 - tone * 7)));
-      next[ctry.query] = score;
-      const prevScore = prev[ctry.query];
-      const trend = prevScore == null ? 0 : score - prevScore;
-      return { ...ctry, score, tone, articles, trend };
-    }).sort((a, b) => b.score - a.score);
-    try { localStorage.setItem("wm_instab_prev", JSON.stringify(next)); } catch {}
-    // Met à jour Vue d'ensemble Risques (moyenne live)
-    renderRiskGauge(enriched);
-    ul.innerHTML = enriched.map(c => {
-      const color = c.score >= 80 ? "var(--accent)" : c.score >= 60 ? "var(--warn)" : "var(--ok)";
-      const arrow = c.trend > 1 ? `<span class="instab-arrow trend-up">↗ +${c.trend}</span>`
-                  : c.trend < -1 ? `<span class="instab-arrow trend-dn">↘ ${c.trend}</span>`
-                  : `<span class="instab-arrow">→</span>`;
-      return `
-        <li class="instab-item" data-lat="${c.lat}" data-lon="${c.lon}" title="Ton moyen GDELT 24h : ${c.tone.toFixed(2)} (${c.articles} dépêches)">
-          <div class="instab-row">
-            <span class="instab-dot" style="background:${color}"></span>
-            <span class="instab-name">${c.name}</span>
-            <span class="instab-score" style="color:${color}">${c.score}</span>
-            ${arrow}
-          </div>
-          <div class="instab-bar"><div class="bar-fill" style="width:${c.score}%;background:${color}"></div></div>
-          <div class="instab-sub">Ton ${c.tone.toFixed(1)} · ${c.articles} dépêches GDELT 24h</div>
-        </li>`;
-    }).join("");
-    ul.querySelectorAll(".instab-item").forEach(li => {
-      li.addEventListener("click", () => {
-        map.flyTo([+li.dataset.lat, +li.dataset.lon], 5, { duration: 0.8 });
+
+    // Helper: rerender depuis le map de tons (partiel ou complet)
+    const rerender = (tones, progress) => {
+      const next = {};
+      const enriched = INSTAB_COUNTRIES.map(ctry => {
+        const t = tones[ctry.query];
+        const loaded = t != null && t.articles > 0;
+        const tone = t?.tone ?? 0;
+        const articles = t?.articles ?? 0;
+        const score = loaded ? Math.max(5, Math.min(99, Math.round(50 - tone * 7))) : null;
+        if (loaded) next[ctry.query] = score;
+        const prevScore = prev[ctry.query];
+        const trend = (loaded && prevScore != null) ? score - prevScore : 0;
+        return { ...ctry, score, tone, articles, trend, loaded };
       });
-    });
+      // Sort: chargés (par score) puis pas encore chargés
+      enriched.sort((a, b) => {
+        if (a.loaded !== b.loaded) return a.loaded ? -1 : 1;
+        return (b.score || 0) - (a.score || 0);
+      });
+      try { localStorage.setItem("wm_instab_prev", JSON.stringify(next)); } catch {}
+      // Met à jour Vue d'ensemble Risques avec ce qu'on a déjà
+      const loaded = enriched.filter(c => c.loaded);
+      if (loaded.length) renderRiskGauge(loaded);
+      const header = progress
+        ? `<li style="color:var(--text-dim);text-align:center;padding:6px;font-size:10px;border-bottom:1px dashed var(--border)">⏳ Chargement GDELT ${progress.done}/${progress.total} pays…</li>`
+        : "";
+      ul.innerHTML = header + enriched.map(c => {
+        if (!c.loaded) {
+          return `<li class="instab-item dim" data-lat="${c.lat}" data-lon="${c.lon}">
+            <div class="instab-row">
+              <span class="instab-dot" style="background:var(--text-dim2)"></span>
+              <span class="instab-name">${c.name}</span>
+              <span class="instab-score" style="color:var(--text-dim2)">…</span>
+            </div>
+            <div class="instab-sub">En attente GDELT…</div>
+          </li>`;
+        }
+        const color = c.score >= 80 ? "var(--accent)" : c.score >= 60 ? "var(--warn)" : "var(--ok)";
+        const arrow = c.trend > 1 ? `<span class="instab-arrow trend-up">↗ +${c.trend}</span>`
+                    : c.trend < -1 ? `<span class="instab-arrow trend-dn">↘ ${c.trend}</span>`
+                    : `<span class="instab-arrow">→</span>`;
+        return `
+          <li class="instab-item" data-lat="${c.lat}" data-lon="${c.lon}" title="Ton moyen GDELT 24h : ${c.tone.toFixed(2)} (${c.articles} dépêches)">
+            <div class="instab-row">
+              <span class="instab-dot" style="background:${color}"></span>
+              <span class="instab-name">${c.name}</span>
+              <span class="instab-score" style="color:${color}">${c.score}</span>
+              ${arrow}
+            </div>
+            <div class="instab-bar"><div class="bar-fill" style="width:${c.score}%;background:${color}"></div></div>
+            <div class="instab-sub">Ton ${c.tone.toFixed(1)} · ${c.articles} dépêches GDELT 24h</div>
+          </li>`;
+      }).join("");
+      ul.querySelectorAll(".instab-item").forEach(li => {
+        li.addEventListener("click", () => {
+          map.flyTo([+li.dataset.lat, +li.dataset.lon], 5, { duration: 0.8 });
+        });
+      });
+    };
+
+    // Rendu initial (vide ou avec cache)
+    const partial = {};
+    rerender(partial, { done: 0, total: INSTAB_COUNTRIES.length });
+
+    // Fetch avec callback streaming
+    const tones = await WM.liveFeeds.gdeltCountryTone(
+      INSTAB_COUNTRIES.map(c => c.query),
+      (name, val, done, total) => {
+        partial[name] = val;
+        rerender(partial, done < total ? { done, total } : null);
+      }
+    );
+    // Render final (au cas où onProgress ne s'est pas exécuté pour les cachés)
+    rerender(tones, null);
   }
 
   // Intel feed — REAL DATA from GDELT 2.0 DOC API (no auth, updated every 15 min)
