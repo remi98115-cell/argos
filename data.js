@@ -365,37 +365,60 @@ WM.liveFeeds = {
     return [];
   },
 
-  // GDELT timelinetone — ton moyen 24h par pays via mode=timelinetone (vrai ton)
-  // GDELT rejette les phrases < 5 caractères entre guillemets, alors on retire
-  // les guillemets dans ce cas (sinon mots multiples = on garde les guillemets pour précision)
-  async gdeltCountryTone(countries) {
+  // GDELT timelinetone — ton moyen 24h par pays
+  // GDELT impose 1 requête / 5s → throttle séquentiel + cache 30 min en localStorage
+  async gdeltCountryTone(countries, onProgress) {
+    const CACHE_KEY = "wm_gdelt_tone_cache";
+    const TTL = 30 * 60 * 1000; // 30 min
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch {}
+    const now = Date.now();
+    const fresh = (entry) => entry && (now - entry.ts) < TTL;
+
+    const results = {};
+    // 1) D'abord servir tout ce qui est en cache frais
+    countries.forEach(name => {
+      if (fresh(cache[name])) results[name] = cache[name].val;
+    });
+
+    // 2) Pour les manquants, fetch séquentiel avec 5s de délai
+    const missing = countries.filter(name => !results[name]);
     const fetchOne = async (name) => {
       const useQuotes = name.length >= 5;
       const q = encodeURIComponent(useQuotes ? `"${name}"` : name);
       const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=timelinetone&timespan=24H&format=json`;
-      const attempts = [
-        base,
-        "https://corsproxy.io/?" + encodeURIComponent(base),
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
-      ];
-      for (const url of attempts) {
-        try {
-          const r = await fetch(url);
-          if (!r.ok) continue;
+      try {
+        const r = await fetch(base);
+        if (r.ok) {
           const txt = await r.text();
-          if (!txt.trim().startsWith("{")) continue;
-          const j = JSON.parse(txt);
-          const series = j.timeline?.[0]?.data || [];
-          const values = series.map(d => d.value).filter(v => typeof v === "number");
-          if (!values.length) return [name, { tone: 0, count: 0 }];
-          const avg = values.reduce((a, b) => a + b, 0) / values.length;
-          return [name, { tone: avg, count: values.length, articles: values.length }];
-        } catch {}
-      }
-      return [name, { tone: 0, count: 0, articles: 0 }];
+          if (txt.trim().startsWith("{")) {
+            const j = JSON.parse(txt);
+            const series = j.timeline?.[0]?.data || [];
+            const values = series.map(d => d.value).filter(v => typeof v === "number");
+            if (values.length) {
+              const avg = values.reduce((a, b) => a + b, 0) / values.length;
+              return { tone: avg, count: values.length, articles: values.length };
+            }
+          }
+        }
+      } catch {}
+      return { tone: 0, count: 0, articles: 0 };
     };
-    const results = await Promise.all(countries.map(fetchOne));
-    return Object.fromEntries(results);
+
+    for (let i = 0; i < missing.length; i++) {
+      const name = missing[i];
+      if (i > 0) await new Promise(r => setTimeout(r, 5100)); // respect 1 req / 5s
+      const val = await fetchOne(name);
+      results[name] = val;
+      // Ne cache que les succès (tone != 0 ou articles > 0)
+      if (val.articles > 0) {
+        cache[name] = { ts: now, val };
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch {}
+      }
+      if (onProgress) onProgress(name, val, i + 1, missing.length);
+    }
+
+    return results;
   },
 
   // CoinGecko — real crypto prices + 24h change (no auth)
@@ -562,24 +585,23 @@ WM.liveFeeds = {
     return null;
   },
 
-  // Commodities — METAUX via gold-api, ÉNERGIE via Yahoo Finance live
+  // Commodities — TOUT via Yahoo Finance (vrais prix + vrais deltas 24h)
   async commodities(category = "metals") {
     if (category === "metals") {
-      const r = await fetch("https://api.gold-api.com/price/XAU").catch(()=>null);
-      const gold = r?.ok ? (await r.json()).price : null;
-      const silverR = await fetch("https://api.gold-api.com/price/XAG").catch(()=>null);
-      const silver = silverR?.ok ? (await silverR.json()).price : null;
-      // Reste via Yahoo (HG=F cuivre, PL=F platine, PA=F palladium)
-      const yahoo = await this._yahooQuotes(["HG=F","PL=F","PA=F"]);
-      const get = sym => yahoo.find(q => q.symbol === sym);
-      const cu = get("HG=F"), pt = get("PL=F"), pd = get("PA=F");
-      return [
-        { ticker:"OR",       price: gold || "—",   unit:"$/oz", delta: 0, desc:"Once troy" },
-        { ticker:"ARGENT",   price: silver || "—", unit:"$/oz", delta: 0, desc:"Once troy" },
-        { ticker:"CUIVRE",   price: cu?.regularMarketPrice ?? "—", unit:"$/lb", delta: cu?.regularMarketChangePercent ?? 0, desc:"Comex" },
-        { ticker:"PLATINE",  price: pt?.regularMarketPrice ?? "—", unit:"$/oz", delta: pt?.regularMarketChangePercent ?? 0, desc:"NYMEX" },
-        { ticker:"PALLADIUM",price: pd?.regularMarketPrice ?? "—", unit:"$/oz", delta: pd?.regularMarketChangePercent ?? 0, desc:"NYMEX" },
-      ].filter(c => c.price !== "—");
+      // GC=F or, SI=F argent, HG=F cuivre, PL=F platine, PA=F palladium
+      const items = await this._yahooQuotes(["GC=F","SI=F","HG=F","PL=F","PA=F"]);
+      const get = sym => items.find(q => q.symbol === sym);
+      const map = [
+        { sym:"GC=F", ticker:"OR",        unit:"$/oz", desc:"COMEX Gold" },
+        { sym:"SI=F", ticker:"ARGENT",    unit:"$/oz", desc:"COMEX Silver" },
+        { sym:"HG=F", ticker:"CUIVRE",    unit:"$/lb", desc:"COMEX Copper" },
+        { sym:"PL=F", ticker:"PLATINE",   unit:"$/oz", desc:"NYMEX Platinum" },
+        { sym:"PA=F", ticker:"PALLADIUM", unit:"$/oz", desc:"NYMEX Palladium" },
+      ];
+      return map.map(m => {
+        const q = get(m.sym);
+        return q ? { ticker: m.ticker, price: q.regularMarketPrice, unit: m.unit, delta: q.regularMarketChangePercent || 0, desc: m.desc } : null;
+      }).filter(Boolean);
     }
     if (category === "energy") {
       // Yahoo : CL=F (WTI), BZ=F (Brent), NG=F (Natural Gas), HO=F (Heating oil)

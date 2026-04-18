@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=21" />
+<link rel="stylesheet" href="styles.css?v=24" />
 </head>
 <body>
 <div id="app">
@@ -41,7 +41,7 @@
       <div class="lang-select">
         <button id="langBtn">🌐 <span>Mondial</span> ▾</button>
       </div>
-      <div class="defcon-box" id="defcon">
+      <div class="defcon-box" id="defcon" title="Niveau d'alerte calculé depuis la moyenne live des scores Instabilité Pays (GDELT 24h).&#10;avg ≥ 80 → DEFCON 1 (guerre majeure)&#10;avg ≥ 65 → DEFCON 2 (mobilisation)&#10;avg ≥ 50 → DEFCON 3 (alerte renforcée)&#10;avg ≥ 35 → DEFCON 4 (alerte)&#10;sinon  → DEFCON 5 (paix)&#10;Delta % vs chargement précédent.">
         <span class="defcon-icon">⚠</span>
         <span class="defcon-label">DEFCON</span>
         <span class="defcon-value" id="defconValue">4</span>
@@ -523,7 +523,7 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="data.js?v=21"></script>
-<script src="app.js?v=21"></script>
+<script src="data.js?v=24"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

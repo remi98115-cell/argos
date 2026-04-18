@@ -747,16 +747,26 @@
   }
 
   // Instability — score live calculé depuis le ton GDELT par pays (24h)
-  // GDELT exige des phrases ≥ 5 caractères entre guillemets — d'où "Iran Tehran" pour contourner.
+  // GDELT exige des phrases ≥ 5 caractères entre guillemets — sinon on les retire automatiquement
   const INSTAB_COUNTRIES = [
-    { name: "Iran",    query: "Iran Tehran",   lat: 32,    lon: 53,     region: "MENA" },
-    { name: "Russia",  query: "Russia",        lat: 61,    lon: 105,    region: "Europe" },
-    { name: "Ukraine", query: "Ukraine",       lat: 49,    lon: 32,     region: "Europe" },
-    { name: "Israel",  query: "Israel",        lat: 31.5,  lon: 34.75,  region: "MENA" },
-    { name: "Sudan",   query: "Sudan",         lat: 15,    lon: 30,     region: "Afrique" },
-    { name: "China",   query: "China Beijing", lat: 35,    lon: 105,    region: "Asie" },
-    { name: "Myanmar", query: "Myanmar",       lat: 21.9,  lon: 95.9,   region: "Asie" },
-    { name: "Haiti",   query: "Haiti",         lat: 18.97, lon: -72.3,  region: "Amériques" },
+    // MENA
+    { name: "Iran",        query: "Iran Tehran",     lat: 32,    lon: 53,     region: "MENA" },
+    { name: "Israel",      query: "Israel",          lat: 31.5,  lon: 34.75,  region: "MENA" },
+    { name: "Yemen",       query: "Yemen Houthis",   lat: 15.5,  lon: 48.5,   region: "MENA" },
+    { name: "Syria",       query: "Syria Damascus",  lat: 34.8,  lon: 38.9,   region: "MENA" },
+    // Europe
+    { name: "Russia",      query: "Russia",          lat: 61,    lon: 105,    region: "Europe" },
+    { name: "Ukraine",     query: "Ukraine",         lat: 49,    lon: 32,     region: "Europe" },
+    // Asie
+    { name: "China",       query: "China Beijing",   lat: 35,    lon: 105,    region: "Asie" },
+    { name: "Myanmar",     query: "Myanmar",         lat: 21.9,  lon: 95.9,   region: "Asie" },
+    { name: "North Korea", query: "North Korea",     lat: 40,    lon: 127,    region: "Asie" },
+    // Afrique
+    { name: "Sudan",       query: "Sudan",           lat: 15,    lon: 30,     region: "Afrique" },
+    { name: "Ethiopia",    query: "Ethiopia",        lat: 9.15,  lon: 40.49,  region: "Afrique" },
+    // Amériques
+    { name: "Haiti",       query: "Haiti",           lat: 18.97, lon: -72.3,  region: "Amériques" },
+    { name: "Venezuela",   query: "Venezuela",       lat: 6.42,  lon: -66.6,  region: "Amériques" },
   ];
   async function renderInstability() {
     const ul = document.getElementById("instabList");
@@ -951,17 +961,12 @@
     `;
   }
 
-  // Insights — base (rapide, avant l'arrivée GDELT)
+  // Insights — placeholder pendant le chargement GDELT (renderInsightsAI prend le relais)
   function renderInsights() {
-    const critical = state.filtered.filter(e => e.sev === "critical");
-    const topics = [...new Set(critical.flatMap(e => e.tags || []))].slice(0, 6);
-    const body = critical.length
-      ? `Analyse agrégée : ${critical.length} événements critiques détectés. Foyers prioritaires : ${topics.slice(0,3).join(", ") || "non catégorisés"}. Données GDELT en cours de chargement…`
-      : `Situation mondiale sous surveillance continue. Aucun événement critique actif sur la plage sélectionnée.`;
     const bodyEl = document.getElementById("insightBody");
-    if (bodyEl) bodyEl.textContent = body;
+    if (bodyEl) bodyEl.textContent = "Analyse GDELT en cours de chargement…";
     const foot = document.querySelector(".insight-foot");
-    if (foot) foot.innerHTML = topics.slice(0, 4).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("") || `<span class="tag">Calme</span>`;
+    if (foot) foot.innerHTML = "";
   }
 
   // Insights IA — génère un briefing riche depuis les articles GDELT réels
