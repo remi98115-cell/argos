@@ -116,10 +116,16 @@
 
   function renderStats() {
     const el = document.getElementById("stats");
-    const critical = state.filtered.filter(e => e.sev === "critical").length;
-    const high = state.filtered.filter(e => e.sev === "high").length;
-    const med = state.filtered.filter(e => e.sev === "med").length;
-    const low = state.filtered.filter(e => e.sev === "low").length;
+    if (!el) return;
+    let critical = 0, high = 0, med = 0, low = 0;
+    const byLayer = {};
+    for (const e of state.filtered) {
+      if (e.sev === "critical") critical++;
+      else if (e.sev === "high") high++;
+      else if (e.sev === "med") med++;
+      else if (e.sev === "low") low++;
+      byLayer[e._layer] = (byLayer[e._layer] || 0) + 1;
+    }
     el.innerHTML = `
       <li class="stat-card critical"><div class="stat-label">Critiques</div><div class="stat-value">${critical}</div></li>
       <li class="stat-card warn"><div class="stat-label">Élevés</div><div class="stat-value">${high}</div></li>
@@ -127,8 +133,6 @@
       <li class="stat-card"><div class="stat-label">Faibles</div><div class="stat-value">${low}</div></li>
       <li class="stat-card" style="grid-column:1/-1"><div class="stat-label">Total affichés</div><div class="stat-value">${state.filtered.length}</div></li>
     `;
-    const byLayer = {};
-    state.filtered.forEach(e => { byLayer[e._layer] = (byLayer[e._layer] || 0) + 1; });
     LAYERS.forEach(l => {
       const c = document.querySelector(`[data-count="${l.id}"]`);
       if (c) c.textContent = byLayer[l.id] || 0;
@@ -323,7 +327,6 @@
     injectPanelCloseButtons();
     applyHiddenPanels();
     applyPanelOrder();
-    initSortable();
     refreshAddMenu();
     scheduleMasonry();
     // Async (fire-and-forget, errors caught inside)
@@ -658,66 +661,9 @@
   }
   // Masonry — calcule grid-row: span N pour chaque panneau selon sa hauteur réelle.
   // Évite les trous : les panneaux longs prennent plus de lignes dans la grille.
-  function layoutMasonry() {
-    const dash = document.getElementById("dashboard");
-    if (!dash) return;
-    const rowH = parseFloat(getComputedStyle(dash).gridAutoRows) || 6;
-    const gap = parseFloat(getComputedStyle(dash).rowGap) || 6;
-    dash.querySelectorAll(".dash-panel, .add-panel-tile").forEach(p => {
-      if (p.hidden || p.classList.contains("world-monitor-bar")) return;
-      // Use scrollHeight to get full content height including unloaded iframes
-      const h = Math.max(p.getBoundingClientRect().height, p.scrollHeight);
-      if (!h) return;
-      const span = Math.max(1, Math.ceil((h + gap) / (rowH + gap)));
-      p.style.gridRowEnd = `span ${span}`;
-    });
-  }
-  let _masonryRaf;
-  function scheduleMasonry() {
-    cancelAnimationFrame(_masonryRaf);
-    _masonryRaf = requestAnimationFrame(() => {
-      layoutMasonry();
-      // Multiple retries to catch iframes loading at different times
-      [200, 600, 1500, 3000].forEach(t => setTimeout(layoutMasonry, t));
-    });
-  }
-  // Re-trigger masonry when any iframe loads
-  document.addEventListener("load", e => {
-    if (e.target?.tagName === "IFRAME") scheduleMasonry();
-  }, true);
-  // Observe panel resizes + window resize
-  if (typeof ResizeObserver !== "undefined") {
-    const ro = new ResizeObserver(() => scheduleMasonry());
-    const observePanels = () => {
-      document.querySelectorAll(".dash-panel, .add-panel-tile").forEach(p => ro.observe(p));
-    };
-    window.addEventListener("DOMContentLoaded", observePanels);
-    setTimeout(observePanels, 1000);
-  }
-  window.addEventListener("resize", scheduleMasonry);
+  // Masonry désactivée — la grille CSS gère désormais des rangées uniformes.
+  function scheduleMasonry() {}
 
-  // Drag-and-drop panels (SortableJS) — DÉSACTIVÉ
-  function initSortable() { return; /* drag verrouillé */
-    if (!window.Sortable) return;
-    const dash = document.getElementById("dashboard");
-    if (!dash || dash.dataset.sortable) return;
-    new Sortable(dash, {
-      handle: ".dash-head",
-      animation: 180,
-      draggable: ".dash-panel",
-      ghostClass: "sortable-ghost",
-      dragClass: "sortable-drag",
-      chosenClass: "sortable-chosen",
-      filter: "button, input, a, .panel-close, .icon-btn",
-      preventOnFilter: false,
-      onEnd: () => {
-        const order = [...dash.querySelectorAll(".dash-panel[data-panel]")].map(p => p.dataset.panel);
-        try { localStorage.setItem("wm_panel_order", JSON.stringify(order)); } catch {}
-        scheduleMasonry();
-      },
-    });
-    dash.dataset.sortable = "1";
-  }
   function applyPanelOrder() {
     try {
       const saved = JSON.parse(localStorage.getItem("wm_panel_order") || "[]");
@@ -754,6 +700,7 @@
   // Forecasts (mock generated from active events)
   function renderForecasts() {
     const list = document.getElementById("forecastList");
+    if (!list) return;
     const topEvents = [...state.filtered].sort((a,b)=>severityWeight(b.sev)-severityWeight(a.sev)).slice(0, 14);
     const forecasts = topEvents.map((e,i) => {
       const p = Math.min(95, 40 + Math.round(severityWeight(e.sev) * 55 + Math.random()*10));
@@ -774,7 +721,8 @@
         </div>
       </li>
     `).join("");
-    document.getElementById("forecastCount").textContent = forecasts.length;
+    const fc = document.getElementById("forecastCount");
+    if (fc) fc.textContent = forecasts.length;
   }
   function forecastText(e) {
     const tpl = [
@@ -813,7 +761,6 @@
     reuters:     { name: "Reuters",        yt: "UChqUTb7kYRX8-EiaN3XFrSQ" },
   };
 
-  let _activeHls = null;
   function setNewsSource(srcId) {
     const s = NEWS_SOURCES[srcId];
     if (!s) return;
@@ -823,18 +770,10 @@
     if (npTitle) npTitle.textContent = "Flux " + s.name;
     const headline = document.getElementById("newsHeadline");
     if (headline) headline.textContent = "Source en direct : " + s.name;
-    if (_activeHls) { try { _activeHls.destroy(); } catch(e){} _activeHls = null; }
     const url = s.vid
       ? `https://www.youtube.com/embed/${s.vid}?autoplay=1&mute=1`
       : `https://www.youtube.com/embed/live_stream?channel=${s.yt}&autoplay=1&mute=1`;
     player.innerHTML = `<iframe src="${url}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;background:#000"></iframe>`;
-  }
-  function youtubeFallback(s, player) {
-    if (_activeHls) { try { _activeHls.destroy(); } catch(e){} _activeHls = null; }
-    const url = s.vid
-      ? `https://www.youtube.com/embed/${s.vid}?autoplay=1&mute=1`
-      : `https://www.youtube.com/embed/live_stream?channel=${s.yt}&autoplay=1&mute=1`;
-    player.innerHTML = `<iframe src="${url}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0"></iframe>`;
   }
 
   // Webcams — real YouTube live IDs vérifiés oEmbed, classés par zone.
@@ -922,40 +861,6 @@
     return `https://www.youtube.com/embed/${cam.vid}?autoplay=1&mute=${muted?1:0}&controls=${controls?1:0}&modestbranding=1&playsinline=1`;
   }
 
-  // Legacy webcams panel was removed (replaced by camwall). Kept as no-op.
-  function renderWebcams() {
-    const grid = document.getElementById("camGrid");
-    if (!grid) return;
-    const active = document.querySelector("#camTabs button.active")?.textContent?.toLowerCase() || "iran attacks";
-    let list;
-    if (active.includes("iran") || active.includes("israël")) list = WEBCAMS.iran;
-    else if (active.includes("ukraine")) list = WEBCAMS.ukraine;
-    else if (active.includes("moyen")) list = WEBCAMS.mena;
-    else if (active.includes("europe")) list = WEBCAMS.europe;
-    else if (active.includes("asie")) list = WEBCAMS.asia;
-    else if (active.includes("espace") || active.includes("iss")) list = WEBCAMS.space;
-    else list = WEBCAMS.all;
-
-    grid.innerHTML = list.slice(0, 6).map((c, i) => `
-      <div class="cam-cell" data-i="${i}">
-        <iframe src="${camEmbedURL(c, true, false)}" allow="autoplay; encrypted-media; picture-in-picture" style="position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none"></iframe>
-        <span class="cam-title">${escapeHtml(c.title)}</span>
-        <span class="cam-live">● LIVE</span>
-        <span class="cam-loc">${escapeHtml(c.loc)}</span>
-      </div>
-    `).join("");
-
-    // Click → send cam to the dedicated CAM featured player (not the news player)
-    grid.querySelectorAll(".cam-cell").forEach((cell, i) => {
-      cell.addEventListener("click", () => {
-        const cam = list[i];
-        setCamFeatured({ vid: cam.vid, title: cam.title });
-        // Scroll to camwall so user sees the update
-        document.querySelector('[data-panel="camwall"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    });
-  }
-
   // Instability
   const INSTAB_COUNTRIES = [
     { name: "Iran",   lat: 32, lon: 53,   base: 99, c: "critical" },
@@ -969,6 +874,7 @@
   ];
   function renderInstability() {
     const ul = document.getElementById("instabList");
+    if (!ul) return;
     ul.innerHTML = INSTAB_COUNTRIES.slice(0, 6).map(ctry => {
       const score = Math.min(99, ctry.base + Math.floor(Math.random()*4)-2);
       const color = score >= 80 ? "var(--accent)" : score >= 60 ? "var(--warn)" : "var(--ok)";
@@ -1069,9 +975,12 @@
   // Risk gauge — score géopolitique stable basé sur la sévérité cumulée.
   // Formule : 45 (base) + critical×1 + high×0.4 + med×0.1, normalisé [35,80].
   function renderRiskGauge() {
-    const critical = state.filtered.filter(e=>e.sev==="critical").length;
-    const high = state.filtered.filter(e=>e.sev==="high").length;
-    const med = state.filtered.filter(e=>e.sev==="med").length;
+    let critical = 0, high = 0, med = 0;
+    for (const e of state.filtered) {
+      if (e.sev === "critical") critical++;
+      else if (e.sev === "high") high++;
+      else if (e.sev === "med") med++;
+    }
     // Scoring ajusté pour rester typiquement 50-70 (ÉLEVÉ), 80+ rare
     let score = 40 + critical * 0.6 + high * 0.25 + med * 0.05;
     score = Math.min(80, Math.max(30, Math.round(score)));
@@ -1184,8 +1093,6 @@
     if (upd) upd.textContent = new Date().toLocaleTimeString("fr-FR");
   }
 
-  const INSTAB_BASE_SCORES = { iran:99, russia:90, china:77, israel:69, haiti:60, sudan:82, myanmar:74, ukraine:88 };
-
   // Insights — base (rapide, avant l'arrivée GDELT)
   function renderInsights() {
     const critical = state.filtered.filter(e => e.sev === "critical");
@@ -1245,7 +1152,8 @@
   }
 
   function renderNewsCount() {
-    document.getElementById("newsCount").textContent = 80 + Math.floor(Math.random() * 30);
+    const nc = document.getElementById("newsCount");
+    if (nc) nc.textContent = 80 + Math.floor(Math.random() * 30);
     // Initial news stream: load France 24 once on first render
     if (!document.querySelector("#newsPlayer iframe")) {
       setNewsSource("france24");
@@ -1698,7 +1606,7 @@
     Object.keys(WEBCAMS).forEach(k => {
       WEBCAMS[k] = (WEBCAMS[k] || []).filter(c => !c.vid || ok.has(c.vid));
     });
-    renderWebcams(); renderCamwall();
+    renderCamwall();
   }
 
   function init() {

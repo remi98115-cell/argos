@@ -77,8 +77,8 @@ body.light-mode {
 }
 #rightbar::-webkit-scrollbar { width: 6px; }
 #rightbar::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
-#right-panels { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
-#right-panels .dash-panel { width: 100%; margin: 0; break-inside: auto; display: flex; }
+#right-panels { display: flex; flex-direction: column; gap: 0; padding: 0; }
+#right-panels .dash-panel { width: 100%; margin: 0; break-inside: auto; display: flex; border-radius: 0; }
 
 #site-footer {
   grid-area: foot;
@@ -414,68 +414,58 @@ body.light-mode .leaflet-tile { filter: none; }
   font-weight: 600 !important; font-size: 11px !important;
 }
 
-/* =========== DASHBOARD PANELS =========== */
+/* =========== DASHBOARD PANELS — Bento grille uniforme =========== */
 #dashboard {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 6px;
-  grid-auto-flow: dense;
-  gap: 8px;
-  padding: 8px;
-  align-items: start;
+  grid-auto-rows: 320px;              /* Hauteur fixe par rangée → tuiles parfaitement alignées */
+  gap: 0;
+  padding: 0;
 }
 @media (max-width: 1200px) { #dashboard { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 800px)  { #dashboard { grid-template-columns: 1fr; } }
+@media (max-width: 800px)  { #dashboard { grid-template-columns: 1fr; grid-auto-rows: auto; } }
+
 .dash-panel {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  grid-column: span 2;             /* default 2/6 = ~33% */
-  grid-row: span 30;               /* fallback, override par JS */
+  grid-column: span 2;                /* 2/6 = 1/3 par défaut */
   background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: 0 4px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.04);
-  transition: border-color .2s, transform .2s, box-shadow .2s;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  transition: background .2s, box-shadow .2s;
   overflow: hidden;
   position: relative;
+  min-width: 0;
 }
 .dash-panel:hover {
-  border-color: var(--border-2);
-  box-shadow: 0 4px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(0,229,255,.12), inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow: inset 0 0 0 1px rgba(0,229,255,.25), inset 0 1px 0 rgba(255,255,255,.04);
+  z-index: 2;
 }
-.dash-panel::before {
-  content: "";
-  position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,229,255,.5), transparent);
-  opacity: 0; transition: opacity .3s;
-}
-.dash-panel:hover::before { opacity: 1; }
 .dash-panel.span-full, .world-monitor-bar { grid-column: 1 / -1; }
 .add-panel-tile { grid-column: 1 / -1; }
 .drop-zone { grid-column: 1 / -1; }
 
-.dash-panel.span-full, .world-monitor-bar { grid-column: 1 / -1; }
-/* News + Cam = 50/50 sur la première ligne */
-[data-panel="news"]    { grid-column: 1 / span 3; grid-row-start: 1; }
-[data-panel="camwall"] { grid-column: 4 / span 3; grid-row-start: 1; }
+/* News + Cam = 50/50 sur les deux premières rangées (vidéo) */
+[data-panel="news"]    { grid-column: 1 / span 3; grid-row: 1 / span 2; }
+[data-panel="camwall"] { grid-column: 4 / span 3; grid-row: 1 / span 2; }
 @media (max-width: 1200px) {
   [data-panel="news"]    { grid-column: 1 / span 2; }
   [data-panel="camwall"] { grid-column: 3 / span 2; }
 }
 @media (max-width: 800px) {
-  [data-panel="news"], [data-panel="camwall"] { grid-column: 1 !important; }
+  [data-panel="news"], [data-panel="camwall"] { grid-column: 1 !important; grid-row: auto !important; }
 }
 
-/* Cap tall panels with internal scroll */
+/* Le contenu des tuiles défile à l'intérieur si trop haut */
+.dash-panel > *:last-child { min-height: 0; }
 .intel-feed, .intel-live, .xsrc-list, .market-list, .quake-list,
-.airline-list, .supply-list, .pred-list, .risk-alerts { max-height: 280px !important; }
-.cam-thumbs, .weather-grid { max-height: 240px !important; }
+.airline-list, .supply-list, .pred-list, .risk-alerts,
+.weather-grid, .cam-thumbs, .instab-list, .commo-grid, .theater-list,
+.forecast-list { flex: 1; min-height: 0; overflow-y: auto; max-height: none !important; }
 .dash-panel[hidden] { display: none !important; }
-.dash-panel.span-full { grid-column: 1 / -1; }
 
 /* Drag-drop verrouillé : pas de handle visible, pas de cursor grab */
 .dash-panel .dash-head { user-select: none; }
@@ -967,7 +957,7 @@ html, body { overflow-x: hidden; max-width: 100vw; -webkit-text-size-adjust: 100
   [data-panel="camwall"] { top: calc(var(--topbar-h) + 8px); }
   #dashboard {
     grid-template-columns: 1fr !important;
-    padding: 6px; gap: 6px; max-width: 100%;
+    padding: 0; gap: 0; max-width: 100%;
   }
   #dashboard .dash-panel { grid-column: 1 / -1 !important; }
   .drop-zone { display: none; }
@@ -980,7 +970,7 @@ html, body { overflow-x: hidden; max-width: 100vw; -webkit-text-size-adjust: 100
     width: 100%;
     margin-top: 8px;
   }
-  #right-panels { padding: 6px; gap: 6px; }
+  #right-panels { padding: 0; gap: 0; }
   #app { display: flex; flex-direction: column; }
   #app > #topbar { flex: 0 0 var(--topbar-h); }
   #app > #sidebar { order: -1; }
