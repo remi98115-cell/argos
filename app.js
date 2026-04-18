@@ -303,7 +303,7 @@
     earthquakes: { label: "Séismes en direct (USGS)",           src: "USGS Earthquake Hazards · M4.5+ semaine" },
     insights:    { label: "Insights IA",                        src: "GDELT 2.0 · USGS · NASA EONET · analyse locale" },
     forecasts:   { label: "Prévisions de l'IA",                 src: "Agrégation événements critiques · 14 projections" },
-    instability: { label: "Instabilité Pays",                   src: "Fragile States Index · curation interne" },
+    instability: { label: "Instabilité Pays",                   src: "GDELT 2.0 · ton moyen 24h par pays (live)" },
     risk:        { label: "Vue d'ensemble Risques",             src: "Agrégation multi-sources (conflits + nat. + cyber)" },
     intel:       { label: "Flux de Renseignements",             src: "GDELT 2.0 DOC API · monde entier · 24h" },
     intellive:   { label: "Renseignements en direct",           src: "GDELT 2.0 filtré par catégorie · temps réel" },
@@ -319,7 +319,7 @@
   function renderDashboardPanels() {
     renderForecasts();
     renderCamwall();
-    renderInstability();
+    renderInstability().catch(() => {});
     renderXSrc();
     renderRiskGauge();
     renderInsights();
@@ -795,34 +795,53 @@
     return `https://www.youtube.com/embed/${cam.vid}?autoplay=1&mute=${muted?1:0}&controls=${controls?1:0}&modestbranding=1&playsinline=1`;
   }
 
-  // Instability
+  // Instability — score live calculé depuis le ton GDELT par pays (24h)
   const INSTAB_COUNTRIES = [
-    { name: "Iran",   lat: 32, lon: 53,   base: 99, c: "critical" },
-    { name: "Russia", lat: 61, lon: 105,  base: 90, c: "critical" },
-    { name: "China",  lat: 35, lon: 105,  base: 77, c: "warn" },
-    { name: "Israel", lat: 31.5, lon: 34.75, base: 69, c: "warn" },
-    { name: "Haiti",  lat: 18.97, lon: -72.3, base: 60, c: "warn" },
-    { name: "Sudan",  lat: 15, lon: 30,   base: 82, c: "critical" },
-    { name: "Myanmar",lat: 21.9, lon: 95.9, base: 74, c: "warn" },
-    { name: "Ukraine",lat: 49, lon: 32,   base: 88, c: "critical" },
+    { name: "Iran",    query: "Iran",    lat: 32,    lon: 53 },
+    { name: "Russia",  query: "Russia",  lat: 61,    lon: 105 },
+    { name: "Ukraine", query: "Ukraine", lat: 49,    lon: 32 },
+    { name: "Israel",  query: "Israel",  lat: 31.5,  lon: 34.75 },
+    { name: "Sudan",   query: "Sudan",   lat: 15,    lon: 30 },
+    { name: "China",   query: "China",   lat: 35,    lon: 105 },
+    { name: "Myanmar", query: "Myanmar", lat: 21.9,  lon: 95.9 },
+    { name: "Haiti",   query: "Haiti",   lat: 18.97, lon: -72.3 },
   ];
-  function renderInstability() {
+  async function renderInstability() {
     const ul = document.getElementById("instabList");
     if (!ul) return;
-    ul.innerHTML = INSTAB_COUNTRIES.map(ctry => {
-      const score = Math.min(99, ctry.base + Math.floor(Math.random()*4)-2);
-      const color = score >= 80 ? "var(--accent)" : score >= 60 ? "var(--warn)" : "var(--ok)";
+    ul.innerHTML = `<li style="color:var(--text-dim);text-align:center;padding:14px">Calcul GDELT live…</li>`;
+    const tones = await WM.liveFeeds.gdeltCountryTone(INSTAB_COUNTRIES.map(c => c.query));
+    // Trend storage
+    let prev = {};
+    try { prev = JSON.parse(localStorage.getItem("wm_instab_prev") || "{}"); } catch {}
+    const next = {};
+    const enriched = INSTAB_COUNTRIES.map(ctry => {
+      const t = tones[ctry.query];
+      const tone = t?.tone ?? 0;
+      const articles = t?.articles ?? 0;
+      // Map ton GDELT (-10..+5) → score instabilité (99..15)
+      const score = Math.max(5, Math.min(99, Math.round(50 - tone * 7)));
+      next[ctry.query] = score;
+      const prevScore = prev[ctry.query];
+      const trend = prevScore == null ? 0 : score - prevScore;
+      return { ...ctry, score, tone, articles, trend };
+    }).sort((a, b) => b.score - a.score);
+    try { localStorage.setItem("wm_instab_prev", JSON.stringify(next)); } catch {}
+    ul.innerHTML = enriched.map(c => {
+      const color = c.score >= 80 ? "var(--accent)" : c.score >= 60 ? "var(--warn)" : "var(--ok)";
+      const arrow = c.trend > 1 ? `<span class="instab-arrow trend-up">↗ +${c.trend}</span>`
+                  : c.trend < -1 ? `<span class="instab-arrow trend-dn">↘ ${c.trend}</span>`
+                  : `<span class="instab-arrow">→</span>`;
       return `
-        <li class="instab-item" data-lat="${ctry.lat}" data-lon="${ctry.lon}">
+        <li class="instab-item" data-lat="${c.lat}" data-lon="${c.lon}" title="Ton moyen GDELT 24h : ${c.tone.toFixed(2)} (${c.articles} dépêches)">
           <div class="instab-row">
             <span class="instab-dot" style="background:${color}"></span>
-            <span class="instab-name">${ctry.name}</span>
-            <span class="instab-score" style="color:${color}">${score}</span>
-            <span class="instab-arrow">→</span>
-            <button class="instab-share" title="Partager">⇪</button>
+            <span class="instab-name">${c.name}</span>
+            <span class="instab-score" style="color:${color}">${c.score}</span>
+            ${arrow}
           </div>
-          <div class="instab-bar"><div class="bar-fill" style="width:${score}%;background:${color}"></div></div>
-          <div class="instab-sub">U:${Math.floor(score*.8)}  C:${Math.floor(Math.random()*100)}  S:${Math.floor(Math.random()*70)}  I:${Math.floor(Math.random()*90)}</div>
+          <div class="instab-bar"><div class="bar-fill" style="width:${c.score}%;background:${color}"></div></div>
+          <div class="instab-sub">Ton ${c.tone.toFixed(1)} · ${c.articles} dépêches GDELT 24h</div>
         </li>`;
     }).join("");
     ul.querySelectorAll(".instab-item").forEach(li => {

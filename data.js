@@ -365,6 +365,36 @@ WM.liveFeeds = {
     return [];
   },
 
+  // GDELT timelinetone — ton moyen 24h par pays via mode=timelinetone (vrai ton)
+  async gdeltCountryTone(countries) {
+    const fetchOne = async (name) => {
+      const q = encodeURIComponent(`"${name}"`);
+      const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=timelinetone&timespan=24H&format=json`;
+      const attempts = [
+        base,
+        "https://corsproxy.io/?" + encodeURIComponent(base),
+        "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
+      ];
+      for (const url of attempts) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const txt = await r.text();
+          if (!txt.trim().startsWith("{")) continue;
+          const j = JSON.parse(txt);
+          const series = j.timeline?.[0]?.data || [];
+          const values = series.map(d => d.value).filter(v => typeof v === "number");
+          if (!values.length) return [name, { tone: 0, count: 0 }];
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          return [name, { tone: avg, count: values.length, articles: values.length }];
+        } catch {}
+      }
+      return [name, { tone: 0, count: 0, articles: 0 }];
+    };
+    const results = await Promise.all(countries.map(fetchOne));
+    return Object.fromEntries(results);
+  },
+
   // CoinGecko — real crypto prices + 24h change (no auth)
   async crypto() {
     try {
