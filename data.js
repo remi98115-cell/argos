@@ -321,9 +321,11 @@ WM.STATIC = {
 
 // ---------- LIVE FETCHERS ----------
 WM.liveFeeds = {
-  // GDELT 2.0 DOC API — real-time global news. Uses CORS proxy if direct call blocked.
-  async gdelt(queryKeywords = "conflict OR war OR attack OR sanctions OR cyber", maxRecords = 25) {
-    const q = encodeURIComponent(queryKeywords);
+  // GDELT 2.0 DOC API — real-time global news. Filtré sur sources francophones par défaut.
+  async gdelt(queryKeywords = "conflit OR guerre OR attaque OR sanctions OR cyber", maxRecords = 25, lang = "French") {
+    // Ajoute le filtre de langue à la query GDELT
+    const fullQuery = lang ? `${queryKeywords} sourcelang:${lang}` : queryKeywords;
+    const q = encodeURIComponent(fullQuery);
     const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=${maxRecords}&format=json&sort=datedesc&timespan=24h`;
     const attempts = [
       base,

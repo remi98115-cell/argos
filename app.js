@@ -902,7 +902,7 @@
     const ul = document.getElementById("intelFeed");
     if (!ul) return;
     ul.innerHTML = `<li class="intel-item" style="color:var(--text-dim);text-align:center">Chargement GDELT…</li>`;
-    const articles = await WM.liveFeeds.gdelt("(conflict OR war OR sanctions OR cyberattack OR military OR nuclear)", 12);
+    const articles = await WM.liveFeeds.gdelt("(conflit OR guerre OR sanctions OR cyberattaque OR militaire OR nucléaire OR attentat)", 12);
     if (!articles.length) {
       ul.innerHTML = `<li class="intel-item">GDELT momentanément inaccessible</li>`;
       return;
@@ -928,10 +928,10 @@
     const ul = document.getElementById("intelLive");
     if (!ul) return;
     const activeTab = document.querySelector("#intelTabs button.active")?.textContent?.toLowerCase() || "militaire";
-    let query = "(military OR army OR defense)";
-    if (activeTab.includes("cyber")) query = "(cyberattack OR ransomware OR APT OR hacking)";
-    else if (activeTab.includes("écono") || activeTab.includes("econo")) query = "(sanctions OR inflation OR recession OR GDP)";
-    else if (activeTab.includes("maritime")) query = "(strait OR shipping OR naval OR port OR maritime)";
+    let query = "(militaire OR armée OR défense OR offensive)";
+    if (activeTab.includes("cyber")) query = "(cyberattaque OR ransomware OR piratage OR cyber)";
+    else if (activeTab.includes("écono") || activeTab.includes("econo")) query = "(sanctions OR inflation OR récession OR économie)";
+    else if (activeTab.includes("maritime")) query = "(détroit OR navire OR maritime OR port OR maritime)";
     ul.innerHTML = `<li class="intel-item" style="color:var(--text-dim);text-align:center">Chargement…</li>`;
     const articles = await WM.liveFeeds.gdelt(query, 14);
     if (!articles.length) {
@@ -1057,13 +1057,13 @@
     const bodyEl = document.getElementById("insightBody");
     const footEl = document.querySelector(".insight-foot");
     if (!bodyEl) return;
-    const articles = await WM.liveFeeds.gdelt("(conflict OR war OR sanctions OR military OR crisis OR nuclear)", 30);
+    const articles = await WM.liveFeeds.gdelt("(conflit OR guerre OR sanctions OR militaire OR crise OR nucléaire)", 30);
     if (!articles || !articles.length) return; // keep base text
 
     // Compte les pays et calcule le ton moyen
     const countryCount = {};
     let toneSum = 0, toneN = 0;
-    const stopWords = new Set(["the","and","for","with","from","about","after","that","this","have","will","which","their","them","they","been","said","over","into","what","when","where","more","some","than","also","says","could","would","should","while","there"]);
+    const stopWords = new Set(["dans","pour","avec","sans","mais","plus","moins","tout","tous","leur","leurs","cette","cela","ceux","celles","entre","chez","être","avoir","fait","faire","peut","autre","autres","aussi","sont","était","ainsi","alors","encore","après","avant","depuis","contre","selon","face","vers","sous","comme","très","bien","quand","pendant","dont","ceci","ceuls"]);
     const wordCount = {};
     articles.forEach(a => {
       if (a.country) countryCount[a.country] = (countryCount[a.country] || 0) + 1;
