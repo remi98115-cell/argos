@@ -88,7 +88,7 @@
     });
 
     // Couches sans cluster : peu de markers et icônes spécifiques (ship, etc.)
-    const NO_CLUSTER = new Set(["shipping", "aisShips"]);
+    const NO_CLUSTER = new Set(["shipping"]);
     LAYERS.forEach(l => {
       const useCluster = state.clusterOn && !NO_CLUSTER.has(l.id);
       const grp = useCluster ? L.markerClusterGroup({
@@ -173,11 +173,6 @@
     if (weather) weather.forEach(e => events.push({ ...e, _layer: "weather" }));
     if (aircraft) aircraft.forEach(e => events.push({ ...e, _layer: "aircraft" }));
     if (ships) ships.forEach(e => events.push({ ...e, _layer: "shipping" }));
-    // Navires AIS live (depuis WebSocket en cours)
-    if (WM.aisLive) {
-      WM.aisLive.connect(); // idempotent
-      WM.aisLive.getShips().forEach(e => events.push({ ...e, _layer: "aisShips" }));
-    }
     state.events = events;
     state.lastUpdate = new Date();
     applyFilters();
@@ -1438,7 +1433,7 @@
 
   function nudgeSlider(delta) { const s = document.getElementById("pbSlider"); s.value = Math.max(0, Math.min(100, +s.value + delta)); s.dispatchEvent(new Event("input")); }
   function rebuildGroups() {
-    const NO_CLUSTER = new Set(["shipping", "aisShips"]);
+    const NO_CLUSTER = new Set(["shipping"]);
     LAYERS.forEach(l => {
       const oldG = markerGroups[l.id];
       if (oldG && map.hasLayer(oldG)) map.removeLayer(oldG);
@@ -1520,14 +1515,6 @@
 
   setInterval(() => { if (document.getElementById("setAutoRefresh")?.checked) loadAll(); }, 5*60*1000);
 
-  // Refresh navires AIS live (WebSocket toujours actif) toutes les 30s
-  setInterval(() => {
-    if (!WM.aisLive || !state.activeLayers.has("aisShips")) return;
-    // Retire les anciens events aisShips et ré-ajoute les courants
-    state.events = state.events.filter(e => e._layer !== "aisShips");
-    WM.aisLive.getShips().forEach(s => state.events.push({ ...s, _layer: "aisShips" }));
-    applyFilters();
-  }, 30 * 1000);
 
   function hideSplash() {
     const s = document.getElementById("splash");
