@@ -349,11 +349,13 @@ body.light-mode {
 }
 #map { width: 100%; height: 100%; background: #000; }
 .leaflet-container { background: #000; font-family: inherit; }
-.leaflet-tile { filter: brightness(.85) saturate(1.2) hue-rotate(-5deg) contrast(1.05); }
+/* CartoDB Voyager = continents clairs (jaune-beige), océans bleu clair.
+   Filtre léger pour rester sur l'esthétique cyber sombre. */
+.leaflet-tile { filter: saturate(.8) contrast(1.0); }
 body.light-mode .leaflet-tile { filter: none; }
-/* Mobile : carte encore plus lumineuse pour lisibilité en plein jour */
+/* Mobile : aucun filtre pour lisibilité maximale en plein jour */
 @media (max-width: 900px) {
-  .leaflet-tile { filter: brightness(1.1) saturate(1.05) contrast(1.0) !important; }
+  .leaflet-tile { filter: none !important; }
 }
 .leaflet-control-zoom { border: none !important; margin: 14px !important; }
 .leaflet-control-zoom a { background: var(--bg-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; font-family: inherit !important; }
