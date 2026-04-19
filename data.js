@@ -692,15 +692,45 @@ WM.liveFeeds = {
       "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson",
       "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
     ];
+    // Réutilise le translateur de WM.fetchers (importé dans le même WM)
+    const dirs = { NE: "NE", NW: "NO", SE: "SE", SW: "SO", N: "N", S: "S", E: "E", W: "O", ENE: "ENE", WNW: "ONO", ESE: "ESE", WSW: "OSO", NNE: "NNE", NNW: "NNO", SSE: "SSE", SSW: "SSO" };
+    const trPlace = (p) => (p || "")
+      .replace(/(\d+)\s*km\s+([NSEW]{1,3})\s+of\s+/gi, (_, km, dir) => `${km} km ${dirs[dir.toUpperCase()] || dir} de `)
+      // "the X Islands" / "the X Sea" → "Îles X" / "Mer X"
+      .replace(/\bthe\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\s+Islands\b/g, "Îles $1")
+      .replace(/\bthe\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\s+Sea\b/g, "Mer $1")
+      .replace(/\bSolomon\s+Islands\b/gi, "Îles Salomon")
+      .replace(/\bMariana\s+Islands\b/gi, "Îles Mariannes")
+      .replace(/\bAleutian\s+Islands\b/gi, "Îles Aléoutiennes")
+      .replace(/\bsouth\s+of\b/gi, "au sud de")
+      .replace(/\bnorth\s+of\b/gi, "au nord de")
+      .replace(/\beast\s+of\b/gi, "à l'est de")
+      .replace(/\bwest\s+of\b/gi, "à l'ouest de")
+      .replace(/\boff(?:\s+the)?\s+coast\s+of\b/gi, "au large de")
+      .replace(/\bregion\b/gi, "région")
+      .replace(/\bIslands\b/gi, "Îles")
+      .replace(/\bIsland\b/gi, "Île")
+      .replace(/\bSea\b/gi, "Mer")
+      .replace(/\bRidge\b/gi, "Dorsale")
+      .replace(/\bGulf\b/gi, "Golfe")
+      .replace(/\bIndonesia\b/gi, "Indonésie")
+      .replace(/\bGreece\b/gi, "Grèce")
+      .replace(/\bTurkey\b/gi, "Turquie")
+      .replace(/\bIceland\b/gi, "Islande")
+      .replace(/\bJapan\b/gi, "Japon")
+      .replace(/\bPhilippines\b/gi, "Philippines")
+      .replace(/\bChile\b/gi, "Chili")
+      .replace(/\bMexico\b/gi, "Mexique")
+      .replace(/\bRussia\b/gi, "Russie");
     for (const url of urls) {
       try {
         const r = await fetch(url);
         if (!r.ok) continue;
         const j = await r.json();
         const items = (j.features || []).map(f => ({
-          title: f.properties.title,
+          title: `Séisme M ${f.properties.mag.toFixed(1)} — ${trPlace(f.properties.place)}`,
           mag: f.properties.mag,
-          place: f.properties.place,
+          place: trPlace(f.properties.place),
           date: new Date(f.properties.time).toISOString(),
           url: f.properties.url,
         }));
@@ -814,6 +844,49 @@ WM.fetchers = {
     ];
   },
 
+  // Helpers de traduction EN → FR pour les titres / catégories des APIs anglaises
+  _trEN_FR: {
+    // Catégories EONET
+    "Wildfires": "Incendies de forêt",
+    "Severe Storms": "Tempêtes violentes",
+    "Volcanoes": "Volcans",
+    "Sea and Lake Ice": "Glace de mer/lac",
+    "Earthquakes": "Séismes",
+    "Floods": "Inondations",
+    "Drought": "Sécheresse",
+    "Dust and Haze": "Poussière et brume",
+    "Landslides": "Glissements de terrain",
+    "Manmade": "Origine humaine",
+    "Snow": "Neige",
+    "Temperature Extremes": "Températures extrêmes",
+    "Water Color": "Coloration de l'eau",
+    // Termes courants dans les titres
+    "Tropical Storm": "Tempête tropicale",
+    "Hurricane": "Ouragan",
+    "Typhoon": "Typhon",
+    "Cyclone": "Cyclone",
+    "Tropical Depression": "Dépression tropicale",
+    "Iceberg": "Iceberg",
+    "Wildfire": "Incendie",
+  },
+  _translate(text) {
+    if (!text) return text;
+    let out = text;
+    Object.entries(this._trEN_FR).forEach(([en, fr]) => {
+      out = out.replace(new RegExp("\\b" + en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), fr);
+    });
+    return out;
+  },
+  // Reformate "M 5.7 - 72 km SW of Tamarindo, Costa Rica" → "Séisme M 5.7 — 72 km SO de Tamarindo, Costa Rica"
+  _translateQuakeTitle(t) {
+    if (!t) return t;
+    const dirs = { NE: "NE", NW: "NO", SE: "SE", SW: "SO", N: "N", S: "S", E: "E", W: "O", ENE: "ENE", WNW: "ONO", ESE: "ESE", WSW: "OSO", NNE: "NNE", NNW: "NNO", SSE: "SSE", SSW: "SSO" };
+    let out = t.replace(/^M\s*([\d.]+)\s*-\s*/, "Séisme M$1 — ");
+    out = out.replace(/(\d+)\s*km\s+([NSEW]{1,3})\s+of\s+/i, (_, km, dir) => `${km} km ${dirs[dir.toUpperCase()] || dir} de `);
+    out = out.replace(/\bof\s+/g, "de ");
+    return out;
+  },
+
   async natural(range) {
     try {
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200");
@@ -823,14 +896,15 @@ WM.fetchers = {
         const g = e.geometry && e.geometry[e.geometry.length - 1];
         if (!g || !g.coordinates) return null;
         const [lon, lat] = g.coordinates;
+        const cat = e.categories && e.categories[0] && e.categories[0].title;
         return {
           id: e.id,
           lat, lon,
-          title: e.title,
-          desc: e.description || (e.categories && e.categories[0] && e.categories[0].title) || "",
-          sev: (e.categories && e.categories[0] && /volcano|severe/i.test(e.categories[0].title)) ? "high" : "med",
+          title: this._translate(e.title),
+          desc: this._translate(e.description || cat || ""),
+          sev: (cat && /volcano|severe/i.test(cat)) ? "high" : "med",
           date: g.date,
-          tags: (e.categories || []).map(c => c.title),
+          tags: (e.categories || []).map(c => this._translate(c.title)),
           url: e.sources && e.sources[0] && e.sources[0].url,
         };
       }).filter(Boolean);
@@ -843,22 +917,26 @@ WM.fetchers = {
       const r = await fetch(`https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_${period}.geojson`);
       if (!r.ok) throw 0;
       const j = await r.json();
-      return (j.features || []).map(f => ({
-        id: f.id,
-        lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0],
-        title: f.properties.title,
-        desc: `Magnitude ${f.properties.mag} — ${f.properties.place}`,
-        sev: f.properties.mag >= 6 ? "critical" : f.properties.mag >= 5 ? "high" : "med",
-        date: new Date(f.properties.time).toISOString(),
-        tags: ["Séisme", "M" + f.properties.mag],
-        url: f.properties.url,
-      }));
+      return (j.features || []).map(f => {
+        const place = (f.properties.place || "").replace(/(\d+)\s*km\s+([NSEW]{1,3})\s+of\s+/i, (_, km, dir) => {
+          const dirs = { NE: "NE", NW: "NO", SE: "SE", SW: "SO", N: "N", S: "S", E: "E", W: "O" };
+          return `${km} km ${dirs[dir.toUpperCase()] || dir} de `;
+        }).replace(/\bof\s+/g, "de ");
+        return {
+          id: f.id,
+          lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0],
+          title: this._translateQuakeTitle(f.properties.title),
+          desc: `Magnitude ${f.properties.mag} — ${place}`,
+          sev: f.properties.mag >= 6 ? "critical" : f.properties.mag >= 5 ? "high" : "med",
+          date: new Date(f.properties.time).toISOString(),
+          tags: ["Séisme", "M" + f.properties.mag],
+          url: f.properties.url,
+        };
+      });
     } catch (e) { return null; }
   },
 
   async fires(range) {
-    // NASA FIRMS requires a key for real fetch. Use USGS volcanoes as proxy
-    // via EONET category:wildfires
     try {
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/categories/wildfires?status=open&limit=120");
       if (!r.ok) throw 0;
@@ -868,7 +946,8 @@ WM.fetchers = {
         if (!g) return null;
         const [lon, lat] = g.coordinates;
         return {
-          id: e.id, lat, lon, title: e.title,
+          id: e.id, lat, lon,
+          title: this._translate(e.title),
           desc: "Incendie actif détecté par satellite.",
           sev: "high", date: g.date, tags: ["Incendie"],
           url: e.sources && e.sources[0] && e.sources[0].url,
