@@ -922,7 +922,7 @@
     const ul = document.getElementById("intelFeed");
     if (!ul) return;
     ul.innerHTML = `<li class="intel-item" style="color:var(--text-dim);text-align:center">Chargement GDELT…</li>`;
-    const articles = await WM.liveFeeds.gdelt("(conflit OR guerre OR sanctions OR cyberattaque OR militaire OR nucléaire OR attentat)", 12);
+    const articles = await WM.liveFeeds.gdelt("(guerre OR conflit OR attentat OR sanctions)", 12);
     if (!articles.length) {
       ul.innerHTML = `<li class="intel-item">GDELT momentanément inaccessible</li>`;
       return;
@@ -1077,7 +1077,7 @@
     const bodyEl = document.getElementById("insightBody");
     const footEl = document.querySelector(".insight-foot");
     if (!bodyEl) return;
-    const articles = await WM.liveFeeds.gdelt("(conflit OR guerre OR sanctions OR militaire OR crise OR nucléaire)", 30);
+    const articles = await WM.liveFeeds.gdelt("(guerre OR crise OR sanctions)", 30);
     if (!articles || !articles.length) return; // keep base text
 
     // Compte les pays et calcule le ton moyen

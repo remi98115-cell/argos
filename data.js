@@ -321,12 +321,28 @@ WM.STATIC = {
 
 // ---------- LIVE FETCHERS ----------
 WM.liveFeeds = {
-  // GDELT 2.0 DOC API — real-time global news. Filtré sur sources francophones par défaut.
-  async gdelt(queryKeywords = "conflit OR guerre OR attaque OR sanctions OR cyber", maxRecords = 25, lang = "French") {
-    // Ajoute le filtre de langue à la query GDELT
-    const fullQuery = lang ? `${queryKeywords} sourcelang:${lang}` : queryKeywords;
-    const q = encodeURIComponent(fullQuery);
-    const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=${maxRecords}&format=json&sort=datedesc&timespan=24h`;
+  // GDELT 2.0 DOC API — real-time global news.
+  // Note: GDELT impose 1 req / 5s. Sérialisation via une queue partagée.
+  // Filtre langue côté client (les queries (A OR B) sourcelang:X cassent).
+  _gdeltQueue: Promise.resolve(),
+  _gdeltLastCall: 0,
+  async _gdeltThrottle() {
+    const elapsed = Date.now() - this._gdeltLastCall;
+    if (elapsed < 5500) await new Promise(r => setTimeout(r, 5500 - elapsed));
+    this._gdeltLastCall = Date.now();
+  },
+  async gdelt(queryKeywords = "conflit OR guerre OR attaque OR sanctions OR cyber", maxRecords = 25, preferLang = "French") {
+    // Sérialise tous les appels GDELT pour respecter le rate limit
+    const me = this._gdeltQueue.then(() => this._gdeltDoFetch(queryKeywords, maxRecords, preferLang));
+    this._gdeltQueue = me.catch(() => {});
+    return me;
+  },
+  async _gdeltDoFetch(queryKeywords, maxRecords, preferLang) {
+    await this._gdeltThrottle();
+    // Demande plus de résultats pour avoir de quoi filtrer après
+    const fetchSize = preferLang ? Math.min(75, maxRecords * 3) : maxRecords;
+    const q = encodeURIComponent(queryKeywords);
+    const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=${fetchSize}&format=json&sort=datedesc&timespan=24h`;
     const attempts = [
       base,
       "https://corsproxy.io/?" + encodeURIComponent(base),
@@ -342,7 +358,7 @@ WM.liveFeeds = {
         let j;
         try { j = JSON.parse(txt); } catch { continue; }
         if (!j.articles) continue;
-        return j.articles.map(a => ({
+        const all = j.articles.map(a => ({
           title: a.title,
           url: a.url,
           source: a.domain,
@@ -351,6 +367,13 @@ WM.liveFeeds = {
           language: a.language,
           tone: a.tone,
         }));
+        // Filtrage langue préférée côté client. Fallback: tout si trop peu.
+        if (!preferLang) return all.slice(0, maxRecords);
+        const preferred = all.filter(a => a.language === preferLang);
+        if (preferred.length >= Math.min(5, maxRecords)) return preferred.slice(0, maxRecords);
+        // Pas assez de FR → mix priorisant FR puis autres
+        const others = all.filter(a => a.language !== preferLang);
+        return [...preferred, ...others].slice(0, maxRecords);
       } catch (e) { /* try next */ }
     }
     console.warn("GDELT: all attempts failed");
