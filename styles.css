@@ -470,8 +470,11 @@ body.light-mode .leaflet-tile { filter: none; }
 /* Maritime + Aérien : pleine largeur, empilés en bas de page */
 .dash-panel[data-panel="maritime"] { grid-column: 1 / -1; }
 .dash-panel[data-panel="aerien"]   { grid-column: 1 / -1; }
-.dash-panel .iframe-wrap { flex: 1; min-height: 220px; position: relative; background: #000; border-radius: 4px; overflow: hidden; }
+.dash-panel .iframe-wrap { flex: 1; min-height: 220px; position: relative; background: #000; border-radius: 4px; overflow: hidden; display: flex; justify-content: center; }
 .dash-panel .iframe-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* Maritime + Aérien : limite la largeur de l'iframe pour éviter la répétition du globe */
+[data-panel="maritime"] .iframe-wrap iframe,
+[data-panel="aerien"] .iframe-wrap iframe { max-width: 1100px; margin: 0 auto; left: 50%; transform: translateX(-50%); right: auto; inset: 0 auto 0 50%; width: min(100%, 1100px); }
 .dash-panel .iframe-wrap iframe[loading="lazy"] { background: linear-gradient(135deg, #0a1024, #1a2a4a); }
 .add-panel-tile { grid-column: 1 / -1; }
 .drop-zone { grid-column: 1 / -1; }
