@@ -354,6 +354,7 @@ WM.liveFeeds = {
     const base = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=${fetchSize}&format=json&sort=datedesc&timespan=24h`;
     const attempts = [
       base,
+      "/api/proxy?url=" + encodeURIComponent(base),
       "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
       "https://corsproxy.io/?" + encodeURIComponent(base),
     ];
@@ -569,7 +570,8 @@ WM.liveFeeds = {
     const fetchOne = async (sym) => {
       const base = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=2d&interval=1d`;
       const attempts = [
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
+        "/api/proxy?url=" + encodeURIComponent(base),
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
       "https://corsproxy.io/?" + encodeURIComponent(base),
       ];
       for (const url of attempts) {
@@ -601,6 +603,7 @@ WM.liveFeeds = {
   async _corsFetchJson(url) {
     const attempts = [
       url,
+      "/api/proxy?url=" + encodeURIComponent(url),
       "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
       "https://corsproxy.io/?" + encodeURIComponent(url),
     ];
@@ -772,6 +775,7 @@ WM.liveFeeds = {
     const base = "https://gamma-api.polymarket.com/markets?limit=30&active=true&closed=false&order=volume&ascending=false";
     const attempts = [
       base,
+      "/api/proxy?url=" + encodeURIComponent(base),
       "https://api.allorigins.win/raw?url=" + encodeURIComponent(base),
       "https://corsproxy.io/?" + encodeURIComponent(base),
     ];
@@ -923,7 +927,7 @@ WM.fetchers = {
       const results = await Promise.all(slice.map(async z => {
         try {
           const url = `https://api.adsb.lol/v2/lat/${z.lat}/lon/${z.lon}/dist/250`;
-          const r = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url));
+          const r = await fetch("/api/proxy?url=" + encodeURIComponent(url));
           if (!r.ok) return [];
           const j = await r.json();
           return j.ac || [];
